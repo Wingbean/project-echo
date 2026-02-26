@@ -205,6 +205,53 @@ def execute_query():
     return jsonify(result)
 
 
+# --- Consult Endpoint ---
+
+@api_bp.route("/consult", methods=["POST"])
+def consult_search():
+    """Search doctor consult records by HN.
+
+    Expects JSON body with:
+        - hn: Patient hospital number (string).
+
+    Returns:
+        JSON with columns and records from doctor_consult table.
+    """
+    import re
+
+    data = request.get_json(silent=True)
+    if not data or not data.get("hn"):
+        return jsonify({"status": "error", "message": "กรุณาระบุ HN"}), 400
+
+    hn = str(data["hn"]).strip()
+
+    # Validate HN: only digits allowed
+    if not re.match(r"^\d+$", hn):
+        return jsonify({"status": "error", "message": "HN ต้องเป็นตัวเลขเท่านั้น"}), 400
+
+    try:
+        df = execute_sql_on_hosxp("consult.sql", params={"hn": hn})
+        columns = df.columns.tolist()
+        records = df.to_dict(orient="records")
+
+        # Convert date/datetime objects to strings for JSON serialization
+        for record in records:
+            for key, val in record.items():
+                if hasattr(val, "isoformat"):
+                    record[key] = val.isoformat()
+                elif val is None:
+                    record[key] = ""
+
+        return jsonify({
+            "status": "success",
+            "columns": columns,
+            "records": records,
+            "total": len(records),
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 # --- Database Test ---
 
 @api_bp.route("/test-db", methods=["GET"])

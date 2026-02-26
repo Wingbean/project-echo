@@ -1,0 +1,152 @@
+{% extends "base.html" %} {% block title %}Consult - Project Echo{% endblock %}
+{% block extra_css %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/components/form.css') }}"
+/>
+{% endblock %} {% block content %}
+<section class="page-section">
+  <div class="section-card">
+    <div class="section-header">
+      <h2 class="section-title">
+        <span class="material-symbols-rounded">forum</span>
+        Consult — ค้นหาข้อมูลปรึกษาแพทย์
+      </h2>
+    </div>
+    <div class="section-body">
+      <form id="consultForm" class="query-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+        <div class="form-group">
+          <label for="hnInput" class="form-label">Hospital Number (HN):</label>
+          <div class="hn-input-wrapper">
+            <input
+              type="text"
+              id="hnInput"
+              name="hn"
+              class="form-input"
+              placeholder="กรอกหมายเลข HN เช่น 0083193"
+              pattern="[0-9]+"
+              inputmode="numeric"
+              autocomplete="off"
+              required
+            />
+          </div>
+          <span class="form-hint"
+            >กรอกเลข HN ของผู้ป่วยเพื่อค้นหาข้อมูลการ Consult</span
+          >
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" id="submitBtn">
+            <span class="material-symbols-rounded">search</span>
+            ค้นหา
+          </button>
+          <button type="reset" class="btn btn-outline" id="resetBtn">
+            <span class="material-symbols-rounded">restart_alt</span>
+            ล้าง
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# Results area #}
+  <div class="section-card" id="resultsSection" style="display: none">
+    <div class="section-header">
+      <h2 class="section-title">
+        <span class="material-symbols-rounded">table_chart</span>
+        ผลลัพธ์การ Consult
+      </h2>
+      <div class="results-meta">
+        <span class="badge" id="hnBadge"></span>
+        <span class="badge" id="resultCount">0 รายการ</span>
+      </div>
+    </div>
+    <div class="section-body">
+      <div class="table-responsive" id="resultsTable"></div>
+    </div>
+  </div>
+</section>
+{% endblock %} {% block extra_js %}
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const form = document.getElementById("consultForm");
+    const hnInput = document.getElementById("hnInput");
+    const submitBtn = document.getElementById("submitBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const resultsSection = document.getElementById("resultsSection");
+    const resultsTable = document.getElementById("resultsTable");
+    const resultCount = document.getElementById("resultCount");
+    const hnBadge = document.getElementById("hnBadge");
+
+    // Handle form submission
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const hn = hnInput.value.trim();
+      if (!hn) return;
+
+      // Show loading state
+      submitBtn.disabled = true;
+      submitBtn.innerHTML =
+        '<span class="material-symbols-rounded spin">progress_activity</span> กำลังค้นหา...';
+      resultsSection.style.display = "block";
+      resultsTable.innerHTML =
+        '<div class="loading-placeholder"><span class="material-symbols-rounded spin">progress_activity</span><span>กำลังค้นหาข้อมูล Consult ของ HN ' +
+        EchoUtils.escapeHtml(hn) +
+        "...</span></div>";
+
+      try {
+        const data = await EchoAPI.post("/api/consult", { hn: hn });
+
+        if (data.status === "error") {
+          resultsTable.innerHTML =
+            '<div class="empty-state error"><span class="material-symbols-rounded">error</span><p>' +
+            EchoUtils.escapeHtml(data.message) +
+            "</p></div>";
+          resultCount.textContent = "0 รายการ";
+          hnBadge.textContent = "";
+          return;
+        }
+
+        const records = data.records || [];
+        const columns = data.columns || [];
+
+        hnBadge.textContent = "HN: " + hn;
+        resultCount.textContent = records.length + " รายการ";
+
+        if (records.length === 0) {
+          resultsTable.innerHTML =
+            '<div class="empty-state"><span class="material-symbols-rounded">search_off</span><p>ไม่พบข้อมูลการ Consult สำหรับ HN ' +
+            EchoUtils.escapeHtml(hn) +
+            "</p></div>";
+          return;
+        }
+
+        resultsTable.innerHTML = EchoUtils.buildTable(columns, records);
+      } catch (err) {
+        resultsTable.innerHTML =
+          '<div class="empty-state error"><span class="material-symbols-rounded">error</span><p>เกิดข้อผิดพลาด: ' +
+          EchoUtils.escapeHtml(err.message) +
+          "</p></div>";
+        resultCount.textContent = "0 รายการ";
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML =
+          '<span class="material-symbols-rounded">search</span> ค้นหา';
+      }
+    });
+
+    // Handle reset
+    resetBtn.addEventListener("click", () => {
+      resultsSection.style.display = "none";
+      resultsTable.innerHTML = "";
+      resultCount.textContent = "0 รายการ";
+      hnBadge.textContent = "";
+    });
+
+    // Auto-focus HN input
+    hnInput.focus();
+  });
+</script>
+{% endblock %}

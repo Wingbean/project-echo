@@ -25,3 +25,9 @@ def results_page():
     if table_name:
         data = get_table_data(table_name)
     return render_template("pages/results.html", data=data, table_name=table_name)
+
+
+@views_bp.route("/consult")
+def consult_page():
+    """Consult search page."""
+    return render_template("pages/consult.html")
