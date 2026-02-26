@@ -76,13 +76,9 @@
         </div>
         <div class="section-body">
             <div class="action-grid">
-                <a href="{{ url_for('views.query_page') }}" class="action-card">
-                    <span class="material-symbols-rounded">search</span>
-                    <span class="action-label">ค้นหาข้อมูล</span>
-                </a>
-                <a href="{{ url_for('views.results_page') }}" class="action-card">
-                    <span class="material-symbols-rounded">analytics</span>
-                    <span class="action-label">ดูผลลัพธ์</span>
+                <a href="{{ url_for('views.consult_page') }}" class="action-card">
+                    <span class="material-symbols-rounded">forum</span>
+                    <span class="action-label">Consult (ค้นหาข้อมูลปรึกษาแพทย์)</span>
                 </a>
             </div>
         </div>
@@ -114,11 +110,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             tables.forEach(name => {
                 const info = data[name];
                 html += `
-                    <a href="/results?table=${encodeURIComponent(name)}" class="table-item">
+                    <div class="table-item">
                         <span class="material-symbols-rounded">table_rows</span>
                         <span class="table-name">${EchoUtils.escapeHtml(name)}</span>
                         <span class="table-badge">${info.row_count || 0} แถว</span>
-                    </a>`;
+                    </div>`;
             });
             html += '</div>';
             tableListEl.innerHTML = html;

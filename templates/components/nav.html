@@ -20,18 +20,6 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a href="{{ url_for('views.query_page') }}" class="nav-link {% if request.endpoint == 'views.query_page' %}active{% endif %}">
-                    <span class="material-symbols-rounded">search</span>
-                    <span>ค้นหาข้อมูล</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{{ url_for('views.results_page') }}" class="nav-link {% if request.endpoint == 'views.results_page' %}active{% endif %}">
-                    <span class="material-symbols-rounded">table_chart</span>
-                    <span>ผลลัพธ์</span>
-                </a>
-            </li>
-            <li class="nav-item">
                 <a href="{{ url_for('views.consult_page') }}" class="nav-link {% if request.endpoint == 'views.consult_page' %}active{% endif %}">
                     <span class="material-symbols-rounded">forum</span>
                     <span>Consult</span>
