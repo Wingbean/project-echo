@@ -1,0 +1,225 @@
+# app/api/routes.py - API Endpoints (JSON responses)
+import os
+import json
+import threading
+
+from flask import jsonify, request
+from app.api import api_bp
+from app import csrf
+from app.config import Config
+from app.services.hosxp_service import (
+    sync_data_from_hosxp,
+    get_last_sync_time,
+    execute_sql_on_hosxp,
+)
+from app.services.render_service import get_dashboard_data, get_table_data
+from app.utils.validators import validate_date, validate_table_name
+from app.utils.helpers import get_current_month_range
+
+# Sync status file path
+_SYNC_STATUS_FILE = os.path.join(Config.INSTANCE_DIR, "sync_status.json")
+
+
+def _set_sync_status(status_dict: dict):
+    """Write sync status to file (atomic)."""
+    try:
+        os.makedirs(Config.INSTANCE_DIR, exist_ok=True)
+        tmp_file = _SYNC_STATUS_FILE + ".tmp"
+        with open(tmp_file, "w", encoding="utf-8") as f:
+            json.dump(status_dict, f, ensure_ascii=False)
+        os.replace(tmp_file, _SYNC_STATUS_FILE)
+    except Exception as e:
+        print(f"Error writing sync status: {e}")
+
+
+def _get_sync_status() -> dict:
+    """Read current sync status."""
+    import time
+
+    if not os.path.exists(_SYNC_STATUS_FILE):
+        return {"status": "idle", "message": "ไม่มีการซิงค์ข้อมูล"}
+
+    for _ in range(3):
+        try:
+            with open(_SYNC_STATUS_FILE, "r", encoding="utf-8") as f:
+                content = f.read().strip()
+                if content:
+                    return json.loads(content)
+        except Exception:
+            pass
+        time.sleep(0.5)
+
+    return {"status": "running", "message": "กำลังตรวจสอบสถานะการซิงค์..."}
+
+
+def _verify_sync_pin() -> tuple[bool, dict]:
+    """Verify the sync PIN from request headers.
+
+    Returns:
+        Tuple of (is_valid, error_response).
+    """
+    pin = request.headers.get("X-Sync-Pin")
+    correct_pin = Config.SYNC_PIN
+
+    if not correct_pin:
+        return False, {"status": "error", "message": "SYNC_PIN not configured"}
+    if pin != correct_pin:
+        return False, {"status": "error", "message": "รหัสผ่านไม่ถูกต้อง (Invalid PIN)"}
+    return True, {}
+
+
+# --- Sync Endpoints ---
+
+@api_bp.route("/sync", methods=["GET"])
+@csrf.exempt
+def sync_data():
+    """Trigger a full data sync from HosXP to SQLite.
+
+    Requires X-Sync-Pin header for authentication.
+    Runs in background thread to prevent timeout.
+    """
+    is_valid, error = _verify_sync_pin()
+    if not is_valid:
+        return jsonify(error), 401
+
+    current_status = _get_sync_status()
+    if current_status.get("status") == "running":
+        return jsonify({
+            "status": "running",
+            "message": "การซิงค์ข้อมูลกำลังทำงานอยู่ กรุณารอสักครู่",
+        })
+
+    start_date = request.args.get("start_date", "")
+    end_date = request.args.get("end_date", "")
+
+    if not start_date or not end_date:
+        start_date, end_date = get_current_month_range()
+
+    if not validate_date(start_date) or not validate_date(end_date):
+        return jsonify({"status": "error", "message": "รูปแบบวันที่ไม่ถูกต้อง"}), 400
+
+    _set_sync_status({"status": "running", "message": "กำลังซิงค์ข้อมูล..."})
+
+    def _run():
+        try:
+            result = sync_data_from_hosxp(start_date, end_date)
+            _set_sync_status(result)
+            print(f"✅ Background sync completed: {result.get('status')}")
+        except Exception as e:
+            _set_sync_status({"status": "error", "message": str(e)})
+            print(f"❌ Background sync failed: {e}")
+
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
+
+    return jsonify({"status": "started", "message": "เริ่มซิงค์ข้อมูลแล้ว กรุณารอสักครู่..."})
+
+
+@api_bp.route("/sync-auto", methods=["GET"])
+@csrf.exempt
+def sync_auto():
+    """Trigger an automatic sync (excludes historical data)."""
+    is_valid, error = _verify_sync_pin()
+    if not is_valid:
+        return jsonify(error), 401
+
+    current_status = _get_sync_status()
+    if current_status.get("status") == "running":
+        return jsonify({
+            "status": "running",
+            "message": "การซิงค์ข้อมูลกำลังทำงานอยู่ กรุณารอสักครู่",
+        })
+
+    _set_sync_status({"status": "running", "message": "กำลังซิงค์ข้อมูลอัตโนมัติ..."})
+
+    def _run():
+        try:
+            start_date, end_date = get_current_month_range()
+            result = sync_data_from_hosxp(start_date, end_date)
+            _set_sync_status(result)
+        except Exception as e:
+            _set_sync_status({"status": "error", "message": str(e)})
+
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
+
+    return jsonify({"status": "started", "message": "เริ่มซิงค์ข้อมูลอัตโนมัติแล้ว"})
+
+
+@api_bp.route("/sync-status", methods=["GET"])
+@csrf.exempt
+def sync_status():
+    """Check the current sync status."""
+    return jsonify(_get_sync_status())
+
+
+@api_bp.route("/last-sync", methods=["GET"])
+@csrf.exempt
+def last_sync():
+    """Get the last sync timestamp."""
+    return jsonify({"last_sync": get_last_sync_time()})
+
+
+# --- Data Endpoints ---
+
+@api_bp.route("/dashboard-data", methods=["GET"])
+@csrf.exempt
+def dashboard_data():
+    """Get all dashboard data from SQLite cache."""
+    data = get_dashboard_data()
+    return jsonify(data)
+
+
+@api_bp.route("/table/<table_name>", methods=["GET"])
+@csrf.exempt
+def table_data(table_name: str):
+    """Get data for a specific cached table.
+
+    Args:
+        table_name: Name of the SQLite table (URL path parameter).
+    """
+    if not validate_table_name(table_name):
+        return jsonify({"status": "error", "message": "ชื่อตารางไม่ถูกต้อง"}), 400
+
+    data = get_table_data(table_name)
+    return jsonify(data)
+
+
+@api_bp.route("/query", methods=["POST"])
+def execute_query():
+    """Execute a query on cached SQLite data.
+
+    Expects JSON body with:
+        - table_name: Name of table to query.
+        - filters: Optional dict of column:value filters.
+    """
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"status": "error", "message": "กรุณาส่งข้อมูล JSON"}), 400
+
+    table_name = data.get("table_name", "")
+    if not validate_table_name(table_name):
+        return jsonify({"status": "error", "message": "ชื่อตารางไม่ถูกต้อง"}), 400
+
+    result = get_table_data(table_name)
+    return jsonify(result)
+
+
+# --- Database Test ---
+
+@api_bp.route("/test-db", methods=["GET"])
+@csrf.exempt
+def test_db():
+    """Test HosXP database connection."""
+    try:
+        from app.models.connection import get_hosxp_connection
+        with get_hosxp_connection() as conn:
+            result = conn.execute(__import__("sqlalchemy").text("SELECT VERSION()"))
+            version = result.fetchone()[0]
+        return jsonify({
+            "status": "success",
+            "message": "Connected to HosXP successfully!",
+            "db_version": version,
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500

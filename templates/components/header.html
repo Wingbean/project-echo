@@ -1,0 +1,11 @@
+{# templates/components/header.html - Page Header #}
+<header class="page-header">
+    <div class="page-header-content">
+        {% block page_header %}
+        <h1 class="page-title">{% block page_title %}Project Echo{% endblock %}</h1>
+        {% if self.page_subtitle is defined %}
+        <p class="page-subtitle">{% block page_subtitle %}{% endblock %}</p>
+        {% endif %}
+        {% endblock %}
+    </div>
+</header>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+    {% include 'components/head.html' %}
+</head>
+<body>
+    {% include 'components/nav.html' %}
+
+    <main class="main-content">
+        <div class="container">
+            {# Flash messages #}
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}" role="alert">
+                                <span class="alert-message">{{ message }}</span>
+                                <button class="alert-close" aria-label="ปิด">&times;</button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            {# Main content area #}
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    {% include 'components/footer.html' %}
+
+    {# Core JavaScript #}
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/api.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+    {# Page-specific JavaScript #}
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

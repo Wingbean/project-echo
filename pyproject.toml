@@ -1,0 +1,20 @@
+[project]
+name = "project-echo"
+version = "0.1.0"
+description = "Project Echo - Web Application for Data Query and Visualization"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "flask",            # Web Framework
+    "flask-wtf",        # CSRF Protection & Form handling
+    "pandas",           # DataFrame operations
+    "sqlalchemy",       # Database ORM
+    "pymysql",          # MySQL/MariaDB driver for HosXP
+    "python-dotenv",    # Environment variable management
+    "gunicorn",         # Production WSGI server
+    "requests",         # HTTP client for external APIs
+    "schedule",         # Task scheduler
+]
+
+[tool.uv]
+# uv manages the virtual environment automatically

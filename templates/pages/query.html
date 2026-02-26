@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}ค้นหาข้อมูล - Project Echo{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/form.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="page-section">
+    <div class="section-card">
+        <div class="section-header">
+            <h2 class="section-title">
+                <span class="material-symbols-rounded">search</span>
+                ค้นหาข้อมูล
+            </h2>
+        </div>
+        <div class="section-body">
+            <form id="queryForm" class="query-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="form-group">
+                    <label for="tableName" class="form-label">เลือกตารางข้อมูล:</label>
+                    <select id="tableName" name="table_name" class="form-select" required>
+                        <option value="">-- กรุณาเลือก --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="searchInput" class="form-label">ค้นหา (ไม่บังคับ):</label>
+                    <input type="text" id="searchInput" name="search" class="form-input"
+                           placeholder="พิมพ์คำค้นหา...">
+                    <span class="form-hint">กรอกคำค้นหาเพื่อกรองข้อมูลที่แสดง</span>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        <span class="material-symbols-rounded">search</span>
+                        ค้นหา
+                    </button>
+                    <button type="reset" class="btn btn-outline">
+                        <span class="material-symbols-rounded">restart_alt</span>
+                        ล้าง
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# Results area #}
+    <div class="section-card" id="resultsSection" style="display:none;">
+        <div class="section-header">
+            <h2 class="section-title">
+                <span class="material-symbols-rounded">table_chart</span>
+                ผลลัพธ์
+            </h2>
+            <span class="badge" id="resultCount">0 แถว</span>
+        </div>
+        <div class="section-body">
+            <div class="table-responsive" id="resultsTable">
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    const form = document.getElementById('queryForm');
+    const tableSelect = document.getElementById('tableName');
+    const resultsSection = document.getElementById('resultsSection');
+    const resultsTable = document.getElementById('resultsTable');
+    const resultCount = document.getElementById('resultCount');
+    const searchInput = document.getElementById('searchInput');
+
+    // Load available tables
+    try {
+        const data = await EchoAPI.get('/api/dashboard-data');
+        const tables = Object.keys(data).filter(k => k !== 'error');
+        tables.forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            tableSelect.appendChild(opt);
+        });
+    } catch (err) {
+        console.error('Error loading tables:', err);
+    }
+
+    // Handle form submission
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const tableName = tableSelect.value;
+        if (!tableName) return;
+
+        resultsSection.style.display = 'block';
+        resultsTable.innerHTML = '<div class="loading-placeholder"><span class="material-symbols-rounded spin">progress_activity</span><span>กำลังค้นหา...</span></div>';
+
+        try {
+            const data = await EchoAPI.get(`/api/table/${encodeURIComponent(tableName)}`);
+            const search = searchInput.value.trim().toLowerCase();
+
+            let records = data.records || [];
+            const columns = data.columns || [];
+
+            // Client-side filtering
+            if (search) {
+                records = records.filter(row =>
+                    Object.values(row).some(val =>
+                        String(val).toLowerCase().includes(search)
+                    )
+                );
+            }
+
+            resultCount.textContent = `${records.length} แถว`;
+
+            if (records.length === 0) {
+                resultsTable.innerHTML = '<div class="empty-state"><span class="material-symbols-rounded">search_off</span><p>ไม่พบข้อมูล</p></div>';
+                return;
+            }
+
+            resultsTable.innerHTML = EchoUtils.buildTable(columns, records);
+        } catch (err) {
+            resultsTable.innerHTML = '<div class="empty-state error"><span class="material-symbols-rounded">error</span><p>เกิดข้อผิดพลาด</p></div>';
+        }
+    });
+});
+</script>
+{% endblock %}

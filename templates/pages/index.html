@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}หน้าหลัก - Project Echo{% endblock %}
+
+{% block content %}
+<section class="hero-section">
+    <div class="hero-content">
+        <h1 class="hero-title">
+            <span class="hero-icon">📡</span>
+            Project Echo
+        </h1>
+        <p class="hero-subtitle">ระบบจัดการและแสดงผลข้อมูล</p>
+    </div>
+</section>
+
+<section class="dashboard-grid">
+    {# Quick Stats Cards #}
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <span class="material-symbols-rounded">database</span>
+            </div>
+            <div class="stat-info">
+                <span class="stat-value" id="tableCount">-</span>
+                <span class="stat-label">ตารางข้อมูล</span>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon accent">
+                <span class="material-symbols-rounded">sync</span>
+            </div>
+            <div class="stat-info">
+                <span class="stat-value stat-value-sm">{{ last_sync }}</span>
+                <span class="stat-label">อัปเดตล่าสุด</span>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <span class="material-symbols-rounded">check_circle</span>
+            </div>
+            <div class="stat-info">
+                <span class="stat-value" id="syncStatus">พร้อมใช้งาน</span>
+                <span class="stat-label">สถานะระบบ</span>
+            </div>
+        </div>
+    </div>
+
+    {# Data Tables Section #}
+    <div class="section-card">
+        <div class="section-header">
+            <h2 class="section-title">
+                <span class="material-symbols-rounded">table_chart</span>
+                ข้อมูลที่มีในระบบ
+            </h2>
+            <button class="btn btn-outline btn-sm" id="refreshData" title="รีเฟรชข้อมูล">
+                <span class="material-symbols-rounded">refresh</span>
+            </button>
+        </div>
+        <div class="section-body" id="tableList">
+            <div class="loading-placeholder">
+                <span class="material-symbols-rounded spin">progress_activity</span>
+                <span>กำลังโหลดข้อมูล...</span>
+            </div>
+        </div>
+    </div>
+
+    {# Quick Actions #}
+    <div class="section-card">
+        <div class="section-header">
+            <h2 class="section-title">
+                <span class="material-symbols-rounded">bolt</span>
+                เมนูลัด
+            </h2>
+        </div>
+        <div class="section-body">
+            <div class="action-grid">
+                <a href="{{ url_for('views.query_page') }}" class="action-card">
+                    <span class="material-symbols-rounded">search</span>
+                    <span class="action-label">ค้นหาข้อมูล</span>
+                </a>
+                <a href="{{ url_for('views.results_page') }}" class="action-card">
+                    <span class="material-symbols-rounded">analytics</span>
+                    <span class="action-label">ดูผลลัพธ์</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    const tableListEl = document.getElementById('tableList');
+    const tableCountEl = document.getElementById('tableCount');
+    const refreshBtn = document.getElementById('refreshData');
+
+    async function loadDashboard() {
+        try {
+            tableListEl.innerHTML = '<div class="loading-placeholder"><span class="material-symbols-rounded spin">progress_activity</span><span>กำลังโหลดข้อมูล...</span></div>';
+            const data = await EchoAPI.get('/api/dashboard-data');
+            const tables = Object.keys(data).filter(k => k !== 'error');
+
+            tableCountEl.textContent = tables.length;
+
+            if (tables.length === 0) {
+                tableListEl.innerHTML = '<div class="empty-state"><span class="material-symbols-rounded">inbox</span><p>ยังไม่มีข้อมูลในระบบ</p><p class="text-muted">กรุณาซิงค์ข้อมูลก่อนใช้งาน</p></div>';
+                return;
+            }
+
+            let html = '<div class="table-list">';
+            tables.forEach(name => {
+                const info = data[name];
+                html += `
+                    <a href="/results?table=${encodeURIComponent(name)}" class="table-item">
+                        <span class="material-symbols-rounded">table_rows</span>
+                        <span class="table-name">${EchoUtils.escapeHtml(name)}</span>
+                        <span class="table-badge">${info.row_count || 0} แถว</span>
+                    </a>`;
+            });
+            html += '</div>';
+            tableListEl.innerHTML = html;
+        } catch (err) {
+            tableListEl.innerHTML = '<div class="empty-state error"><span class="material-symbols-rounded">error</span><p>เกิดข้อผิดพลาดในการโหลดข้อมูล</p></div>';
+        }
+    }
+
+    refreshBtn.addEventListener('click', loadDashboard);
+    await loadDashboard();
+});
+</script>
+{% endblock %}

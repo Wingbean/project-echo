@@ -1,0 +1,15 @@
+services:
+  web:
+    build: .
+    container_name: project_echo_web
+    ports:
+      - "5009:5009"
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Bangkok
+      - FLASK_APP=main.py
+    restart: always
+    command: gunicorn -c gunicorn.conf.py main:app --reload
