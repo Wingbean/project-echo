@@ -7,4 +7,5 @@ SELECT
 FROM doctor_consult
 WHERE
 	hn = %(hn)s
+ORDER BY consult_date DESC
 ;

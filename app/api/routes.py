@@ -231,6 +231,8 @@ def consult_search():
 
     try:
         df = execute_sql_on_hosxp("consult.sql", params={"hn": hn})
+        # Replace NaN/NaT with empty strings to ensure valid JSON
+        df = df.fillna("")
         columns = df.columns.tolist()
         records = df.to_dict(orient="records")
 
@@ -238,7 +240,8 @@ def consult_search():
         for record in records:
             for key, val in record.items():
                 if hasattr(val, "isoformat"):
-                    record[key] = val.isoformat()
+                    dt_str = val.isoformat()
+                    record[key] = "" if dt_str == "NaT" else dt_str
                 elif val is None:
                     record[key] = ""
 
