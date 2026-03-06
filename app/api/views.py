@@ -15,3 +15,9 @@ def index():
 def consult_page():
     """Consult search page."""
     return render_template("pages/consult.html")
+
+
+@views_bp.route("/flow_opd")
+def flow_opd_page():
+    """OPD Flow search page."""
+    return render_template("pages/flow_opd.html")

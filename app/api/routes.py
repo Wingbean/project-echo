@@ -239,11 +239,70 @@ def consult_search():
         # Convert date/datetime objects to strings for JSON serialization
         for record in records:
             for key, val in record.items():
-                if hasattr(val, "isoformat"):
+                if hasattr(val, "components"): # For pandas Timedelta
+                    ts = str(val).split()[-1]
+                    record[key] = ts.split('.')[0]
+                elif hasattr(val, "isoformat"):
                     dt_str = val.isoformat()
                     record[key] = "" if dt_str == "NaT" else dt_str
                 elif val is None:
                     record[key] = ""
+
+        return jsonify({
+            "status": "success",
+            "columns": columns,
+            "records": records,
+            "total": len(records),
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+# --- OPD Flow Endpoint ---
+
+@api_bp.route("/flow_opd", methods=["POST"])
+def flow_opd_search():
+    """Search OPD Flow records by HN for today.
+
+    Expects JSON body with:
+        - hn: Patient hospital number (string).
+
+    Returns:
+        JSON with columns and records from flow_opd.sql.
+    """
+    import re
+
+    data = request.get_json(silent=True)
+    if not data or not data.get("hn"):
+        return jsonify({"status": "error", "message": "กรุณาระบุ HN"}), 400
+
+    hn = str(data["hn"]).strip()
+
+    # Validate HN: only digits allowed
+    if not re.match(r"^\d+$", hn):
+        return jsonify({"status": "error", "message": "HN ต้องเป็นตัวเลขเท่านั้น"}), 400
+
+    try:
+        df = execute_sql_on_hosxp("flow_opd.sql", params={"hn": hn})
+        # Replace NaN/NaT with empty strings to ensure valid JSON
+        df = df.fillna("")
+        columns = df.columns.tolist()
+        records = df.to_dict(orient="records")
+
+        # Convert date/datetime/timedelta objects to strings for JSON serialization
+        for record in records:
+            for key, val in record.items():
+                if hasattr(val, "components"): # For pandas Timedelta
+                    # str(val) is like "0 days 22:00:10", we extract just time
+                    ts = str(val).split()[-1]
+                    record[key] = ts.split('.')[0]
+                elif hasattr(val, "isoformat"):
+                    dt_str = val.isoformat()
+                    record[key] = "" if dt_str == "NaT" else dt_str
+                elif val is None:
+                    record[key] = ""
+                else:
+                    record[key] = str(val) if not isinstance(val, (int, float, str, bool)) else val
 
         return jsonify({
             "status": "success",
