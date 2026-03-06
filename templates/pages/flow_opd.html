@@ -92,82 +92,14 @@
 {% endblock %} {% block extra_js %}
 <script>
   document.addEventListener("DOMContentLoaded", () => {
-    const form = document.getElementById("flowOpdForm");
-    const hnInput = document.getElementById("hnInput");
-    const submitBtn = document.getElementById("submitBtn");
-    const resetBtn = document.getElementById("resetBtn");
-    const resultsSection = document.getElementById("resultsSection");
-    const resultsTable = document.getElementById("resultsTable");
-    const resultCount = document.getElementById("resultCount");
-    const hnBadge = document.getElementById("hnBadge");
-
-    // Handle form submission
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const hn = hnInput.value.trim();
-      if (!hn) return;
-
-      // Show loading state
-      submitBtn.disabled = true;
-      submitBtn.innerHTML =
-        '<span class="material-symbols-rounded spin">progress_activity</span> กำลังค้นหา...';
-      resultsSection.style.display = "block";
-      resultsTable.innerHTML =
-        '<div class="loading-placeholder"><span class="material-symbols-rounded spin">progress_activity</span><span>กำลังค้นหาข้อมูล OPD Flow ของ HN ' +
-        EchoUtils.escapeHtml(hn) +
-        "...</span></div>";
-
-      try {
-        const data = await EchoAPI.post("/api/flow_opd", { hn: hn });
-
-        if (data.status === "error") {
-          resultsTable.innerHTML =
-            '<div class="empty-state error"><span class="material-symbols-rounded">error</span><p>' +
-            EchoUtils.escapeHtml(data.message) +
-            "</p></div>";
-          resultCount.textContent = "0 รายการ";
-          hnBadge.textContent = "";
-          return;
-        }
-
-        const records = data.records || [];
-        const columns = data.columns || [];
-
-        hnBadge.textContent = "HN: " + hn;
-        resultCount.textContent = records.length + " รายการ";
-
-        if (records.length === 0) {
-          resultsTable.innerHTML =
-            '<div class="empty-state"><span class="material-symbols-rounded">search_off</span><p>ไม่พบข้อมูล OPD Flow วันนี้สำหรับ HN ' +
-            EchoUtils.escapeHtml(hn) +
-            "</p></div>";
-          return;
-        }
-
-        resultsTable.innerHTML = EchoUtils.buildTable(columns, records);
-      } catch (err) {
-        resultsTable.innerHTML =
-          '<div class="empty-state error"><span class="material-symbols-rounded">error</span><p>เกิดข้อผิดพลาด: ' +
-          EchoUtils.escapeHtml(err.message) +
-          "</p></div>";
-        resultCount.textContent = "0 รายการ";
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML =
-          '<span class="material-symbols-rounded">search</span> ค้นหาข้อมูล Flow รพ.';
-      }
+    EchoUtils.setupHnSearch({
+      formId: "flowOpdForm",
+      apiUrl: "/api/flow_opd",
+      loadingMessage: "กำลังค้นหาข้อมูล OPD Flow ของ HN",
+      noDataMessage: "ไม่พบข้อมูล OPD Flow วันนี้สำหรับ HN",
+      submitButtonHtml:
+        '<span class="material-symbols-rounded">search</span> ค้นหาข้อมูล Flow รพ.',
     });
-
-    // Handle reset
-    resetBtn.addEventListener("click", () => {
-      resultsSection.style.display = "none";
-      resultsTable.innerHTML = "";
-      resultCount.textContent = "0 รายการ";
-      hnBadge.textContent = "";
-    });
-
-    // Auto-focus HN input
-    hnInput.focus();
   });
 </script>
 {% endblock %}
