@@ -136,8 +136,12 @@ const EchoUtils = {
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const hn = hnInput.value.trim();
+      let hn = hnInput.value.trim();
       if (!hn) return;
+
+      // Pad HN to 7 digits with leading zeros
+      hn = hn.padStart(7, "0");
+      hnInput.value = hn; // Update the input field visually
 
       submitBtn.disabled = true;
       submitBtn.innerHTML =
