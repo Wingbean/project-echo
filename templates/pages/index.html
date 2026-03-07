@@ -1,130 +1,193 @@
-{% extends "base.html" %}
-
-{% block title %}หน้าหลัก - Project Echo{% endblock %}
-
+{% extends "base.html" %} {% block title %}หน้าหลัก - Project Echo{% endblock %}
 {% block content %}
 <section class="hero-section">
-    <div class="hero-content">
-        <h1 class="hero-title">
-            <span class="hero-icon">📡</span>
-            Project Echo
-        </h1>
-        <p class="hero-subtitle">ระบบจัดการและแสดงผลข้อมูล</p>
-    </div>
+  <div class="hero-content">
+    <h1 class="hero-title">
+      <span class="hero-icon">📡</span>
+      Project Echo
+    </h1>
+    <p class="hero-subtitle">ระบบจัดการและแสดงผลข้อมูล</p>
+  </div>
 </section>
 
 <section class="dashboard-grid">
-    {# Quick Stats Cards #}
-    <div class="stats-row">
-        <div class="stat-card">
-            <div class="stat-icon">
-                <span class="material-symbols-rounded">database</span>
-            </div>
-            <div class="stat-info">
-                <span class="stat-value" id="tableCount">-</span>
-                <span class="stat-label">ตารางข้อมูล</span>
-            </div>
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-icon accent">
-                <span class="material-symbols-rounded">sync</span>
-            </div>
-            <div class="stat-info">
-                <span class="stat-value stat-value-sm">{{ last_sync }}</span>
-                <span class="stat-label">อัปเดตล่าสุด</span>
-            </div>
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-icon success">
-                <span class="material-symbols-rounded">check_circle</span>
-            </div>
-            <div class="stat-info">
-                <span class="stat-value" id="syncStatus">พร้อมใช้งาน</span>
-                <span class="stat-label">สถานะระบบ</span>
-            </div>
-        </div>
+  {# Services & Features #}
+  <div class="section-card">
+    <div class="section-header">
+      <h2 class="section-title">
+        <span class="material-symbols-rounded">apps</span>
+        บริการและระบบค้นหา
+      </h2>
     </div>
+    <div class="section-body">
+      <div
+        class="action-grid"
+        style="
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+          gap: 1rem;
+        "
+      >
+        <a
+          href="{{ url_for('views.consult_page') }}"
+          class="action-card"
+          style="
+            border-left: 4px solid var(--primary-500);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            background: var(--surface-light);
+            border-radius: 8px;
+            text-decoration: none;
+            color: inherit;
+            transition:
+              transform 0.2s,
+              box-shadow 0.2s;
+          "
+        >
+          <div style="display: flex; align-items: center; gap: 0.5rem">
+            <span
+              class="material-symbols-rounded"
+              style="color: var(--primary-500)"
+              >forum</span
+            >
+            <h3 style="margin: 0; font-size: 1.1rem">Consult</h3>
+          </div>
+          <p style="margin: 0; font-size: 0.9rem; color: var(--text-light)">
+            ระบบค้นหาข้อมูลการปรึกษาแพทย์ระหว่างแผนก
+          </p>
+        </a>
 
-    {# Data Tables Section #}
-    <div class="section-card">
-        <div class="section-header">
-            <h2 class="section-title">
-                <span class="material-symbols-rounded">table_chart</span>
-                ข้อมูลที่มีในระบบ
-            </h2>
-            <button class="btn btn-outline btn-sm" id="refreshData" title="รีเฟรชข้อมูล">
-                <span class="material-symbols-rounded">refresh</span>
-            </button>
-        </div>
-        <div class="section-body" id="tableList">
-            <div class="loading-placeholder">
-                <span class="material-symbols-rounded spin">progress_activity</span>
-                <span>กำลังโหลดข้อมูล...</span>
-            </div>
-        </div>
-    </div>
+        <a
+          href="{{ url_for('views.flow_opd_page') }}"
+          class="action-card"
+          style="
+            border-left: 4px solid var(--indigo-500, #6366f1);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            background: var(--surface-light);
+            border-radius: 8px;
+            text-decoration: none;
+            color: inherit;
+            transition:
+              transform 0.2s,
+              box-shadow 0.2s;
+          "
+        >
+          <div style="display: flex; align-items: center; gap: 0.5rem">
+            <span
+              class="material-symbols-rounded"
+              style="color: var(--indigo-500, #6366f1)"
+              >route</span
+            >
+            <h3 style="margin: 0; font-size: 1.1rem">OPD Flow</h3>
+          </div>
+          <p style="margin: 0; font-size: 0.9rem; color: var(--text-light)">
+            ระบบตรวจสอบและติดตามเส้นทางผู้ป่วยนอก
+          </p>
+        </a>
 
-    {# Quick Actions #}
-    <div class="section-card">
-        <div class="section-header">
-            <h2 class="section-title">
-                <span class="material-symbols-rounded">bolt</span>
-                เมนูลัด
-            </h2>
-        </div>
-        <div class="section-body">
-            <div class="action-grid">
-                <a href="{{ url_for('views.consult_page') }}" class="action-card">
-                    <span class="material-symbols-rounded">forum</span>
-                    <span class="action-label">Consult (ค้นหาข้อมูลปรึกษาแพทย์)</span>
-                </a>
-            </div>
-        </div>
+        <a
+          href="{{ url_for('views.egfr_page') }}"
+          class="action-card"
+          style="
+            border-left: 4px solid var(--amber-500, #f59e0b);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            background: var(--surface-light);
+            border-radius: 8px;
+            text-decoration: none;
+            color: inherit;
+            transition:
+              transform 0.2s,
+              box-shadow 0.2s;
+          "
+        >
+          <div style="display: flex; align-items: center; gap: 0.5rem">
+            <span
+              class="material-symbols-rounded"
+              style="color: var(--amber-500, #f59e0b)"
+              >kidney</span
+            >
+            <h3 style="margin: 0; font-size: 1.1rem">eGFR</h3>
+          </div>
+          <p style="margin: 0; font-size: 0.9rem; color: var(--text-light)">
+            ค้นหาแนวโน้มค่าอัตราการกรองของไตย้อนหลัง
+          </p>
+        </a>
+
+        <a
+          href="{{ url_for('views.a1c_page') }}"
+          class="action-card"
+          style="
+            border-left: 4px solid var(--rose-500, #f43f5e);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            background: var(--surface-light);
+            border-radius: 8px;
+            text-decoration: none;
+            color: inherit;
+            transition:
+              transform 0.2s,
+              box-shadow 0.2s;
+          "
+        >
+          <div style="display: flex; align-items: center; gap: 0.5rem">
+            <span
+              class="material-symbols-rounded"
+              style="color: var(--rose-500, #f43f5e)"
+              >water_drop</span
+            >
+            <h3 style="margin: 0; font-size: 1.1rem">HbA1c</h3>
+          </div>
+          <p style="margin: 0; font-size: 0.9rem; color: var(--text-light)">
+            ตรวจสอบระดับน้ำตาลเฉลี่ยสะสมในเลือด
+          </p>
+        </a>
+
+        <a
+          href="#"
+          class="action-card"
+          style="
+            border-left: 4px solid var(--emerald-500, #10b981);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            background: var(--surface-light);
+            border-radius: 8px;
+            text-decoration: none;
+            color: inherit;
+            transition:
+              transform 0.2s,
+              box-shadow 0.2s;
+          "
+        >
+          <div style="display: flex; align-items: center; gap: 0.5rem">
+            <span
+              class="material-symbols-rounded"
+              style="color: var(--emerald-500, #10b981)"
+              >monitor_heart</span
+            >
+            <h3 style="margin: 0; font-size: 1.1rem">NCD Clinic</h3>
+          </div>
+          <p style="margin: 0; font-size: 0.9rem; color: var(--text-light)">
+            ระบบค้นหารายชื่อผู้ป่วยและผลแล็บคลินิกโรคเรื้อรัง
+          </p>
+        </a>
+      </div>
     </div>
+  </div>
 </section>
-{% endblock %}
-
-{% block extra_js %}
+{% endblock %} {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', async () => {
-    const tableListEl = document.getElementById('tableList');
-    const tableCountEl = document.getElementById('tableCount');
-    const refreshBtn = document.getElementById('refreshData');
-
-    async function loadDashboard() {
-        try {
-            tableListEl.innerHTML = '<div class="loading-placeholder"><span class="material-symbols-rounded spin">progress_activity</span><span>กำลังโหลดข้อมูล...</span></div>';
-            const data = await EchoAPI.get('/api/dashboard-data');
-            const tables = Object.keys(data).filter(k => k !== 'error');
-
-            tableCountEl.textContent = tables.length;
-
-            if (tables.length === 0) {
-                tableListEl.innerHTML = '<div class="empty-state"><span class="material-symbols-rounded">inbox</span><p>ยังไม่มีข้อมูลในระบบ</p><p class="text-muted">กรุณาซิงค์ข้อมูลก่อนใช้งาน</p></div>';
-                return;
-            }
-
-            let html = '<div class="table-list">';
-            tables.forEach(name => {
-                const info = data[name];
-                html += `
-                    <div class="table-item">
-                        <span class="material-symbols-rounded">table_rows</span>
-                        <span class="table-name">${EchoUtils.escapeHtml(name)}</span>
-                        <span class="table-badge">${info.row_count || 0} แถว</span>
-                    </div>`;
-            });
-            html += '</div>';
-            tableListEl.innerHTML = html;
-        } catch (err) {
-            tableListEl.innerHTML = '<div class="empty-state error"><span class="material-symbols-rounded">error</span><p>เกิดข้อผิดพลาดในการโหลดข้อมูล</p></div>';
-        }
-    }
-
-    refreshBtn.addEventListener('click', loadDashboard);
-    await loadDashboard();
-});
+  // Dashboard functionality removed per user request
 </script>
 {% endblock %}
