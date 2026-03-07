@@ -1,0 +1,350 @@
+{% extends "base.html" %} {% block title %}EMR Search - Project Echo{% endblock
+%} {% block content %}
+<div
+  class="page-header"
+  style="
+    background: linear-gradient(
+      135deg,
+      var(--teal-500, #14b8a6) 0%,
+      var(--teal-700, #0f766e) 100%
+    );
+  "
+>
+  <div class="header-content">
+    <h1 class="page-title">
+      <span class="material-symbols-rounded">recent_patient</span>
+      EMR
+    </h1>
+    <p class="page-subtitle">
+      สืบค้นประวัติการรักษาผู้ป่วยนอก (Hx, PE, Dx, OP)
+    </p>
+  </div>
+</div>
+
+<div class="search-container">
+  <form id="emrSearchForm" class="search-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+    <div class="search-input-group">
+      <label for="hnInput" class="search-label">ค้นหาด้วย HN</label>
+      <div class="input-wrapper">
+        <span class="material-symbols-rounded input-icon">search</span>
+        <input
+          type="text"
+          id="hnInput"
+          class="search-input"
+          placeholder="ระบุ HN 7 หลัก (เช่น 0012000)"
+          autocomplete="off"
+          required
+        />
+      </div>
+      <p class="input-help">ระบบจะเติมเลข 0 ด้านหน้าให้ครบ 7 หลักอัตโนมัติ</p>
+    </div>
+    <div class="search-actions">
+      <button
+        type="submit"
+        class="btn btn-primary"
+        id="searchBtn"
+        style="
+          background-color: var(--teal-600, #0d9488);
+          border-color: var(--teal-600, #0d9488);
+        "
+      >
+        <span class="material-symbols-rounded">search</span>
+        ค้นหาข้อมูล
+      </button>
+      <button type="button" class="btn btn-outline" id="resetBtn">
+        <span class="material-symbols-rounded">restart_alt</span>
+        เริ่มใหม่
+      </button>
+    </div>
+  </form>
+</div>
+
+<div id="resultsSection" class="results-section" style="display: none">
+  <div class="results-header">
+    <div class="results-title-group">
+      <h2 class="results-title">
+        <span
+          class="material-symbols-rounded"
+          style="color: var(--teal-500, #14b8a6)"
+          >list_alt</span
+        >
+        ประวัติการรักษา
+      </h2>
+      <span class="badge" id="hnBadge"></span>
+    </div>
+    <div class="results-meta">
+      <span class="result-count" id="resultCount"></span>
+    </div>
+  </div>
+  <div
+    class="results-body"
+    id="resultsTable"
+    style="background: transparent; border: none; padding: 0"
+  >
+    <!-- Javascript will inject the VN cards here -->
+  </div>
+</div>
+
+{% endblock %} {% block extra_js %}
+<style>
+  /* --- Custom EMR Card Styles --- */
+  .emr-cards-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .emr-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px var(--shadow, rgba(0, 0, 0, 0.1));
+    overflow: hidden;
+  }
+
+  /* Distinct Header per VN */
+  .emr-card-header {
+    background: var(--teal-600, #0d9488);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 1.1rem;
+    border-bottom: 2px solid var(--teal-700, #0f766e);
+  }
+
+  .emr-card-header strong {
+    font-weight: 600;
+  }
+
+  .emr-card-body {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  @media (min-width: 1024px) {
+    .emr-card-body {
+      flex-direction: row;
+    }
+  }
+
+  /* Layout Panes */
+  .emr-left-pane {
+    flex: 3;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .emr-right-pane {
+    flex: 2;
+    background: var(--surface-light);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: row;
+    gap: 1.5rem;
+  }
+
+  .emr-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .emr-row.gap-large {
+    margin-top: 0.5rem;
+  }
+
+  /* Field Components */
+  .emr-field {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 150px;
+  }
+
+  .emr-field.full {
+    width: 100%;
+    flex: none;
+    align-items: flex-start;
+  }
+
+  .emr-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    width: 65px;
+    text-align: right;
+    margin-right: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .emr-label.wide {
+    width: 65px;
+  }
+
+  .emr-label.large {
+    font-size: 1.25rem;
+    color: var(--text);
+    width: 45px;
+    margin-top: 0.25rem;
+    text-align: left;
+  }
+
+  .emr-value {
+    flex: 1;
+    font-size: 0.95rem;
+    color: #111827 !important; /* Force true black text */
+    background: #f3f4f6 !important; /* Force light grey box */
+    border: 1px solid #d1d5db !important;
+    padding: 0.4rem 0.75rem;
+    border-radius: 4px;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    word-break: break-word;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05); /* Textbox feel */
+  }
+
+  .emr-value.textarea {
+    min-height: 60px;
+    align-items: flex-start;
+    white-space: pre-wrap;
+    line-height: 1.5;
+  }
+
+  /* Right pane columns */
+  .emr-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  /* Dark mode specific fine-tuning */
+  [data-theme="dark"] .emr-card {
+    border-color: var(--border-light);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  }
+
+  [data-theme="dark"] .emr-label {
+    color: var(--text-light); /* Make label slightly brighter in dark mode */
+  }
+
+  @media (max-width: 640px) {
+    .emr-row {
+      flex-direction: column;
+    }
+    .emr-right-pane {
+      flex-direction: column;
+    }
+  }
+</style>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    // Custom render function for EMR cards
+    const renderEMRCards = (records) => {
+      if (!records || records.length === 0) return "";
+
+      let html = '<div class="emr-cards-container">';
+
+      records.forEach((row) => {
+        const val = (key) => {
+          const v = row[key];
+          return v
+            ? EchoUtils.escapeHtml(String(v))
+            : '<span style="color: var(--text-muted); opacity: 0.5;">-</span>';
+        };
+
+        html += `
+            <div class="emr-card">
+                <div class="emr-card-header">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <span class="material-symbols-rounded">event_note</span>
+                        <strong>วันที่: ${val("VstDate")} ${val("VstTime")}</strong>
+                    </div>
+                </div>
+                <div class="emr-card-body">
+                    <!-- Left Pane -->
+                    <div class="emr-left-pane">
+                        <div class="emr-row">
+                            <div class="emr-field"><div class="emr-label">VN</div><div class="emr-value" style="font-weight: bold; color: var(--teal-600);">${val("VN")}</div></div>
+                            <div class="emr-field"><div class="emr-label">HN</div><div class="emr-value">${val("HN")}</div></div>
+                            <div class="emr-field"><div class="emr-label">AN</div><div class="emr-value">${val("AN")}</div></div>
+                        </div>
+                        <div class="emr-row">
+                            <div class="emr-field"><div class="emr-label">VstDate</div><div class="emr-value">${val("VstDate")}</div></div>
+                            <div class="emr-field"><div class="emr-label">VstTime</div><div class="emr-value">${val("VstTime")}</div></div>
+                            <div class="emr-field"><div class="emr-label">Rights</div><div class="emr-value">${val("Rights")}</div></div>
+                        </div>
+                        <div class="emr-row gap-large">
+                            <div class="emr-field"><div class="emr-label">Dept</div><div class="emr-value">${val("Dept")}</div></div>
+                            <div class="emr-field"><div class="emr-label" style="width: 75px;">HxTaker</div><div class="emr-value">${val("HxTaker")}</div></div>
+                            <div class="emr-field"><div class="emr-label" style="width: 40px;">Dr</div><div class="emr-value">${val("Dr")}</div></div>
+                        </div>
+                        
+                        <div class="emr-field full gap-large">
+                            <div class="emr-label large">CC</div>
+                            <div class="emr-value textarea" style="color: var(--rose-600); font-weight: 500;">${val("CC")}</div>
+                        </div>
+                        <div class="emr-field full">
+                            <div class="emr-label large">Hpi</div>
+                            <div class="emr-value textarea">${val("Hpi")}</div>
+                        </div>
+                        <div class="emr-field full">
+                            <div class="emr-label large">PE</div>
+                            <div class="emr-value textarea">${val("PE")}</div>
+                        </div>
+                    </div>
+
+                    <!-- Right Pane -->
+                    <div class="emr-right-pane">
+                        <div class="emr-col">
+                            <div class="emr-field"><div class="emr-label wide">Dx_Text</div><div class="emr-value" style="font-weight: 500;">${val("Dx_Text")}</div></div>
+                            <div class="emr-field"><div class="emr-label wide" style="color: var(--teal-600);">PDx</div><div class="emr-value" style="font-weight: 600;">${val("PDx")}</div></div>
+                            <div class="emr-field"><div class="emr-label wide">Dx1</div><div class="emr-value">${val("Dx1")}</div></div>
+                            <div class="emr-field"><div class="emr-label wide">Dx2</div><div class="emr-value">${val("Dx2")}</div></div>
+                            <div class="emr-field"><div class="emr-label wide">Dx3</div><div class="emr-value">${val("Dx3")}</div></div>
+                        </div>
+                        <div class="emr-col">
+                            <div class="emr-field"><div class="emr-label wide">op1</div><div class="emr-value">${val("op1")}</div></div>
+                            <div class="emr-field"><div class="emr-label wide">op2</div><div class="emr-value">${val("op2")}</div></div>
+                            <div class="emr-field"><div class="emr-label wide">op3</div><div class="emr-value">${val("op3")}</div></div>
+                            <div class="emr-field"><div class="emr-label wide">op4</div><div class="emr-value">${val("op4")}</div></div>
+                            <div class="emr-field"><div class="emr-label wide">op5</div><div class="emr-value">${val("op5")}</div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+      });
+
+      html += "</div>";
+      return html;
+    };
+
+    EchoUtils.setupHnSearch({
+      apiUrl: "/api/emr",
+      formId: "emrSearchForm",
+      hnInputId: "hnInput",
+      submitBtnId: "searchBtn",
+      resetBtnId: "resetBtn",
+      resultsSectionId: "resultsSection",
+      resultsTableId: "resultsTable",
+      resultCountId: "resultCount",
+      hnBadgeId: "hnBadge",
+      loadingMessage: "กำลังดึงประวัติการรักษา EMR สำหรับ HN:",
+      noDataMessage: "ไม่พบประวัติการรักษา EMR สำหรับ HN:",
+      submitButtonHtml:
+        '<span class="material-symbols-rounded">search</span> ค้นหาข้อมูล',
+      customRender: renderEMRCards,
+    });
+  });
+</script>
+{% endblock %}

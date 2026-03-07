@@ -191,11 +191,16 @@ const EchoUtils = {
           return;
         }
 
-        resultsTable.innerHTML = EchoUtils.buildTable(
-          columns,
-          records,
-          options.tableOptions,
-        );
+        if (typeof options.customRender === "function") {
+          resultsTable.innerHTML = options.customRender(records, columns);
+        } else {
+          resultsTable.innerHTML = EchoUtils.buildTable(
+            columns,
+            records,
+            options.tableOptions,
+          );
+        }
+
         if (typeof options.onSuccess === "function") options.onSuccess(records);
       } catch (err) {
         resultsTable.innerHTML = `<div class="empty-state error"><span class="material-symbols-rounded">error</span><p>เกิดข้อผิดพลาด: ${EchoUtils.escapeHtml(err.message)}</p></div>`;

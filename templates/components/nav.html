@@ -58,6 +58,15 @@
           <span>HbA1c</span>
         </a>
       </li>
+      <li class="nav-item">
+        <a
+          href="{{ url_for('views.emr_page') }}"
+          class="nav-link {% if request.endpoint == 'views.emr_page' %}active{% endif %}"
+        >
+          <span class="material-symbols-rounded">recent_patient</span>
+          <span>EMR</span>
+        </a>
+      </li>
     </ul>
 
     <div class="nav-actions">

@@ -33,3 +33,9 @@ def egfr_page():
 def a1c_page():
     """A1C lab result search page."""
     return render_template("pages/a1c.html")
+
+
+@views_bp.route("/emr")
+def emr_page():
+    """EMR (Electronic Medical Record) search page."""
+    return render_template("pages/emr.html")

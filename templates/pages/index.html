@@ -182,6 +182,36 @@
             ระบบค้นหารายชื่อผู้ป่วยและผลแล็บคลินิกโรคเรื้อรัง
           </p>
         </a>
+        <a
+          href="{{ url_for('views.emr_page') }}"
+          class="action-card"
+          style="
+            border-left: 4px solid var(--teal-500, #14b8a6);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            background: var(--surface-light);
+            border-radius: 8px;
+            text-decoration: none;
+            color: inherit;
+            transition:
+              transform 0.2s,
+              box-shadow 0.2s;
+          "
+        >
+          <div style="display: flex; align-items: center; gap: 0.5rem">
+            <span
+              class="material-symbols-rounded"
+              style="color: var(--teal-500, #14b8a6)"
+              >recent_patient</span
+            >
+            <h3 style="margin: 0; font-size: 1.1rem">EMR</h3>
+          </div>
+          <p style="margin: 0; font-size: 0.9rem; color: var(--text-light)">
+            ระบบดึงข้อมูลประวัติการรักษาผู้ป่วยนอก (Hx, PE, Dx, OP)
+          </p>
+        </a>
       </div>
     </div>
   </div>
