@@ -1,0 +1,237 @@
+{% extends "base.html" %} {% block title %}eGFR - Project Echo{% endblock %} {%
+block extra_css %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/components/form.css') }}"
+/>
+<style>
+  /* Custom styling for eGFR to differentiate it from Consult and Flow OPD */
+  .page-section .section-header .material-symbols-rounded {
+    color: var(--amber-500, #f59e0b);
+  }
+  .btn-primary {
+    background-color: var(--amber-600, #d97706);
+    color: white;
+  }
+  .btn-primary:hover {
+    background-color: var(--amber-700, #b45309);
+    color: white;
+  }
+  .badge {
+    background-color: var(--amber-100, #fef3c7);
+    color: var(--amber-800, #92400e);
+  }
+  .table-responsive th {
+    background-color: var(--amber-50, #fffbeb);
+    color: var(--amber-900, #78350f);
+    border-bottom-color: var(--amber-200, #fde68a);
+  }
+</style>
+{% endblock %} {% block content %}
+<section class="page-section">
+  <div class="section-card">
+    <div class="section-header">
+      <h2 class="section-title">
+        <span class="material-symbols-rounded">kidney</span>
+        eGFR — ค้นหาผลแล็บ eGFR
+      </h2>
+    </div>
+    <div class="section-body">
+      <form id="egfrForm" class="query-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+        <div class="form-group">
+          <label for="hnInput" class="form-label">Hospital Number (HN):</label>
+          <div class="hn-input-wrapper">
+            <input
+              type="text"
+              id="hnInput"
+              name="hn"
+              class="form-input"
+              placeholder="กรอกหมายเลข HN เช่น 0083193"
+              pattern="[0-9]+"
+              inputmode="numeric"
+              autocomplete="off"
+              required
+            />
+          </div>
+          <span class="form-hint"
+            >กรอกเลข HN ของผู้ป่วยเพื่อค้นหาประวัติผลแล็บ eGFR ย้อนหลัง</span
+          >
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" id="submitBtn">
+            <span class="material-symbols-rounded">search</span>
+            ค้นหาผล eGFR
+          </button>
+          <button type="reset" class="btn btn-outline" id="resetBtn">
+            <span class="material-symbols-rounded">restart_alt</span>
+            ล้าง
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# Results area #}
+  <div class="section-card" id="resultsSection" style="display: none">
+    <div class="section-header">
+      <h2 class="section-title">
+        <span class="material-symbols-rounded">table_chart</span>
+        ประวัติผลแล็บ eGFR
+      </h2>
+      <div class="results-meta">
+        <span class="badge" id="hnBadge"></span>
+        <span class="badge" id="resultCount">0 รายการ</span>
+      </div>
+    </div>
+    <div class="section-body">
+      <div
+        class="chart-container"
+        style="
+          position: relative;
+          height: 300px;
+          width: 100%;
+          margin-bottom: 2rem;
+          display: none;
+        "
+        id="egfrChartContainer"
+      >
+        <canvas id="egfrChart"></canvas>
+      </div>
+      <div class="table-responsive" id="resultsTable"></div>
+    </div>
+  </div>
+</section>
+{% endblock %} {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    let egfrChartInstance = null;
+    const chartContainer = document.getElementById("egfrChartContainer");
+    const ctx = document.getElementById("egfrChart").getContext("2d");
+
+    function destroyChart() {
+      if (egfrChartInstance) {
+        egfrChartInstance.destroy();
+        egfrChartInstance = null;
+      }
+      chartContainer.style.display = "none";
+    }
+
+    EchoUtils.setupHnSearch({
+      formId: "egfrForm",
+      apiUrl: "/api/egfr",
+      loadingMessage: "กำลังค้นหาข้อมูล eGFR ของ HN",
+      noDataMessage: "ไม่พบประวัติผล eGFR สำหรับ HN",
+      submitButtonHtml:
+        '<span class="material-symbols-rounded">search</span> ค้นหาผล eGFR',
+      tableOptions: {
+        cellRenderers: {
+          CKD_Stage: (val) => {
+            if (!val) return val;
+            const stage = String(val).toLowerCase();
+            let bgColor = "";
+            if (stage === "1")
+              bgColor = "#22c55e"; // green-500
+            else if (stage === "2")
+              bgColor = "#eab308"; // yellow-500
+            else if (stage === "3a")
+              bgColor = "#f59e0b"; // amber-500
+            else if (stage === "3b")
+              bgColor = "#ea580c"; // orange-600
+            else if (stage === "4")
+              bgColor = "#ef4444"; // red-500
+            else if (stage === "5")
+              bgColor = "#991b1b"; // red-800
+            else return val;
+
+            return {
+              content: `<span style="background-color: ${bgColor}; color: white; font-weight: 600; padding: 2px 10px; border-radius: 12px; display: inline-block; min-width: 40px; text-align: center;">${EchoUtils.escapeHtml(val)}</span>`,
+              style: "text-align: center; vertical-align: middle;",
+            };
+          },
+        },
+      },
+      onReset: () => {
+        destroyChart();
+      },
+      onSuccess: (records) => {
+        destroyChart();
+        if (!records || records.length === 0) return;
+
+        // Ensure records are ordered chronologically for plotting (oldest to newest)
+        const sortedRecords = [...records].reverse();
+
+        const labels = sortedRecords.map((r) => r.LabDate);
+        const dataValues = sortedRecords.map((r) => parseFloat(r.result));
+        const ckdStages = sortedRecords.map((r) => r.CKD_Stage || "Unknown");
+
+        // Map CKD Stage to colors
+        const pointColors = ckdStages.map((stage) => {
+          if (stage === "1") return "#22c55e"; // green-500
+          if (stage === "2") return "#eab308"; // yellow-500
+          if (stage === "3a") return "#f59e0b"; // amber-500
+          if (stage === "3b") return "#ea580c"; // orange-600
+          if (stage === "4") return "#ef4444"; // red-500
+          if (stage === "5") return "#991b1b"; // red-800
+          return "#6b7280"; // gray-500
+        });
+
+        chartContainer.style.display = "block";
+        egfrChartInstance = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: "eGFR Level",
+                data: dataValues,
+                borderColor: "#64748b", // slate-500 (neutral line)
+                backgroundColor: "rgba(100, 116, 139, 0.1)",
+                borderWidth: 2,
+                pointBackgroundColor: pointColors,
+                pointBorderColor: pointColors,
+                pointRadius: 5,
+                pointHoverRadius: 7,
+                fill: true,
+                tension: 0.3,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: "top" },
+              title: {
+                display: true,
+                text: "แนวโน้มค่า eGFR ย้อนหลัง (แบ่งสีตามระยะ CKD)",
+              },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    const value = context.parsed.y;
+                    const stage = ckdStages[context.dataIndex];
+                    return `eGFR: ${value} (CKD Stage ${stage})`;
+                  },
+                },
+              },
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: { display: true, text: "eGFR Result" },
+              },
+              x: {
+                title: { display: true, text: "วันที่ตรวจ" },
+              },
+            },
+          },
+        });
+      },
+    });
+  });
+</script>
+{% endblock %}

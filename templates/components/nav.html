@@ -40,6 +40,15 @@
           <span>OPD Flow</span>
         </a>
       </li>
+      <li class="nav-item">
+        <a
+          href="{{ url_for('views.egfr_page') }}"
+          class="nav-link {% if request.endpoint == 'views.egfr_page' %}active{% endif %}"
+        >
+          <span class="material-symbols-rounded">kidney</span>
+          <span>eGFR</span>
+        </a>
+      </li>
     </ul>
 
     <div class="nav-actions">

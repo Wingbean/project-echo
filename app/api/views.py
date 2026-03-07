@@ -21,3 +21,9 @@ def consult_page():
 def flow_opd_page():
     """OPD Flow search page."""
     return render_template("pages/flow_opd.html")
+
+
+@views_bp.route("/egfr")
+def egfr_page():
+    """eGFR lab result search page."""
+    return render_template("pages/egfr.html")

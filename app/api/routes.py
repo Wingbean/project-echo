@@ -205,6 +205,62 @@ def execute_query():
     return jsonify(result)
 
 
+# --- eGFR Endpoint ---
+
+@api_bp.route("/egfr", methods=["POST"])
+def egfr_search():
+    """Search eGFR records by HN.
+
+    Expects JSON body with:
+        - hn: Patient hospital number (string).
+
+    Returns:
+        JSON with columns and records from egfr.sql.
+    """
+    import re
+
+    data = request.get_json(silent=True)
+    if not data or not data.get("hn"):
+        return jsonify({"status": "error", "message": "กรุณาระบุ HN"}), 400
+
+    hn = str(data["hn"]).strip()
+    hn = hn.zfill(7) # pad with leading zeros, just to be safe at backend
+
+    # Validate HN: only digits allowed
+    if not re.match(r"^\d+$", hn):
+        return jsonify({"status": "error", "message": "HN ต้องเป็นตัวเลขเท่านั้น"}), 400
+
+    try:
+        df = execute_sql_on_hosxp("egfr.sql", params={"hn": hn})
+        # Replace NaN/NaT with empty strings to ensure valid JSON
+        df = df.fillna("")
+        columns = df.columns.tolist()
+        records = df.to_dict(orient="records")
+
+        # Convert date/datetime/timedelta objects to strings for JSON serialization
+        for record in records:
+            for key, val in record.items():
+                if hasattr(val, "components"): # For pandas Timedelta
+                    ts = str(val).split()[-1]
+                    record[key] = ts.split('.')[0]
+                elif hasattr(val, "isoformat"):
+                    dt_str = val.isoformat()
+                    record[key] = "" if dt_str == "NaT" else dt_str
+                elif val is None:
+                    record[key] = ""
+                else:
+                    record[key] = str(val) if not isinstance(val, (int, float, str, bool)) else val
+
+        return jsonify({
+            "status": "success",
+            "columns": columns,
+            "records": records,
+            "total": len(records),
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 # --- Consult Endpoint ---
 
 @api_bp.route("/consult", methods=["POST"])

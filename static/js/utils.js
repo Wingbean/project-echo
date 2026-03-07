@@ -30,9 +30,10 @@ const EchoUtils = {
    * Build an HTML table from columns and records.
    * @param {string[]} columns - Column names.
    * @param {Object[]} records - Array of row objects.
+   * @param {Object} options - Additional table options (e.g. cellRenderers).
    * @returns {string} HTML table string.
    */
-  buildTable(columns, records) {
+  buildTable(columns, records, options = {}) {
     if (!columns.length || !records.length) {
       return '<div class="empty-state"><span class="material-symbols-rounded">inbox</span><p>ไม่มีข้อมูล</p></div>';
     }
@@ -48,7 +49,26 @@ const EchoUtils = {
       html += `<tr><td class="row-num">${i + 1}</td>`;
       columns.forEach((col) => {
         const val = row[col];
-        html += `<td>${val !== null && val !== undefined ? this.escapeHtml(val) : "-"}</td>`;
+        let tdContent =
+          val !== null && val !== undefined ? this.escapeHtml(val) : "-";
+        let tdAttrs = "";
+
+        if (options.cellRenderers && options.cellRenderers[col]) {
+          const renderResult = options.cellRenderers[col](val, row);
+          if (renderResult && typeof renderResult === "object") {
+            tdContent =
+              renderResult.content !== undefined
+                ? renderResult.content
+                : tdContent;
+            if (renderResult.style) tdAttrs += ` style="${renderResult.style}"`;
+            if (renderResult.className)
+              tdAttrs += ` class="${renderResult.className}"`;
+          } else if (renderResult !== undefined) {
+            tdContent = renderResult;
+          }
+        }
+
+        html += `<td${tdAttrs}>${tdContent}</td>`;
       });
       html += "</tr>";
     });
@@ -167,10 +187,16 @@ const EchoUtils = {
 
         if (records.length === 0) {
           resultsTable.innerHTML = `<div class="empty-state"><span class="material-symbols-rounded">search_off</span><p>${options.noDataMessage} ${EchoUtils.escapeHtml(hn)}</p></div>`;
+          if (typeof options.onSuccess === "function") options.onSuccess([]);
           return;
         }
 
-        resultsTable.innerHTML = EchoUtils.buildTable(columns, records);
+        resultsTable.innerHTML = EchoUtils.buildTable(
+          columns,
+          records,
+          options.tableOptions,
+        );
+        if (typeof options.onSuccess === "function") options.onSuccess(records);
       } catch (err) {
         resultsTable.innerHTML = `<div class="empty-state error"><span class="material-symbols-rounded">error</span><p>เกิดข้อผิดพลาด: ${EchoUtils.escapeHtml(err.message)}</p></div>`;
         resultCount.textContent = "0 รายการ";
@@ -185,6 +211,7 @@ const EchoUtils = {
       resultsTable.innerHTML = "";
       resultCount.textContent = "0 รายการ";
       hnBadge.textContent = "";
+      if (typeof options.onReset === "function") options.onReset();
     });
 
     hnInput.focus();
