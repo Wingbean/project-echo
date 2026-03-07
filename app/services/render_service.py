@@ -1,5 +1,6 @@
 # app/services/render_service.py - Data Rendering Service
 import pandas as pd
+from sqlalchemy import text
 from app.models.connection import sqlite_engine
 from app.services.hosxp_service import get_dataframe_from_sqlite
 
@@ -64,7 +65,6 @@ def query_sqlite(sql: str, params: dict | None = None) -> dict:
         Dictionary with records, columns, and row count.
     """
     try:
-        from sqlalchemy import text
         with sqlite_engine.connect() as conn:
             result = conn.execute(text(sql), params or {})
             columns = list(result.keys())

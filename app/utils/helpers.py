@@ -1,4 +1,5 @@
 # app/utils/helpers.py - General Helper Functions
+import calendar
 from datetime import datetime
 
 
@@ -8,8 +9,6 @@ def get_current_month_range() -> tuple[str, str]:
     Returns:
         Tuple of (start_date, end_date) as YYYY-MM-DD strings.
     """
-    import calendar
-
     now = datetime.now()
     start_date = now.replace(day=1).strftime("%Y-%m-%d")
     _, last_day = calendar.monthrange(now.year, now.month)

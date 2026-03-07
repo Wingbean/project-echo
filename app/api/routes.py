@@ -2,11 +2,14 @@
 import os
 import json
 import threading
+import time
+import re
 
 from flask import jsonify, request
 from app.api import api_bp
 from app import csrf
 from app.config import Config
+from app.models.connection import get_hosxp_connection
 from app.services.hosxp_service import (
     sync_data_from_hosxp,
     get_last_sync_time,
@@ -34,8 +37,6 @@ def _set_sync_status(status_dict: dict):
 
 def _get_sync_status() -> dict:
     """Read current sync status."""
-    import time
-
     if not os.path.exists(_SYNC_STATUS_FILE):
         return {"status": "idle", "message": "ไม่มีการซิงค์ข้อมูล"}
 
@@ -217,8 +218,6 @@ def egfr_search():
     Returns:
         JSON with columns and records from egfr.sql.
     """
-    import re
-
     data = request.get_json(silent=True)
     if not data or not data.get("hn"):
         return jsonify({"status": "error", "message": "กรุณาระบุ HN"}), 400
@@ -261,6 +260,59 @@ def egfr_search():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+# --- A1C Endpoint ---
+
+@api_bp.route("/a1c", methods=["POST"])
+def a1c_search():
+    """Search A1C records by HN.
+
+    Expects JSON body with:
+        - hn: Patient hospital number (string).
+
+    Returns:
+        JSON with columns and records from a1c.sql.
+    """
+    data = request.get_json(silent=True)
+    if not data or not data.get("hn"):
+        return jsonify({"status": "error", "message": "กรุณาระบุ HN"}), 400
+
+    hn = str(data["hn"]).strip()
+    hn = hn.zfill(7) # pad with leading zeros
+
+    # Validate HN: only digits allowed
+    if not re.match(r"^\d+$", hn):
+        return jsonify({"status": "error", "message": "HN ต้องเป็นตัวเลขเท่านั้น"}), 400
+
+    try:
+        df = execute_sql_on_hosxp("a1c.sql", params={"hn": hn})
+        df = df.fillna("")
+        columns = df.columns.tolist()
+        records = df.to_dict(orient="records")
+
+        # Convert objects to strings for JSON
+        for record in records:
+            for key, val in record.items():
+                if hasattr(val, "components"):
+                    ts = str(val).split()[-1]
+                    record[key] = ts.split('.')[0]
+                elif hasattr(val, "isoformat"):
+                    dt_str = val.isoformat()
+                    record[key] = "" if dt_str == "NaT" else dt_str
+                elif val is None:
+                    record[key] = ""
+                else:
+                    record[key] = str(val) if not isinstance(val, (int, float, str, bool)) else val
+
+        return jsonify({
+            "status": "success",
+            "columns": columns,
+            "records": records,
+            "total": len(records),
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 # --- Consult Endpoint ---
 
 @api_bp.route("/consult", methods=["POST"])
@@ -273,8 +325,6 @@ def consult_search():
     Returns:
         JSON with columns and records from doctor_consult table.
     """
-    import re
-
     data = request.get_json(silent=True)
     if not data or not data.get("hn"):
         return jsonify({"status": "error", "message": "กรุณาระบุ HN"}), 400
@@ -326,8 +376,6 @@ def flow_opd_search():
     Returns:
         JSON with columns and records from flow_opd.sql.
     """
-    import re
-
     data = request.get_json(silent=True)
     if not data or not data.get("hn"):
         return jsonify({"status": "error", "message": "กรุณาระบุ HN"}), 400
@@ -377,7 +425,6 @@ def flow_opd_search():
 def test_db():
     """Test HosXP database connection."""
     try:
-        from app.models.connection import get_hosxp_connection
         with get_hosxp_connection() as conn:
             result = conn.execute(__import__("sqlalchemy").text("SELECT VERSION()"))
             version = result.fetchone()[0]

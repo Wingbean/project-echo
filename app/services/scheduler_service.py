@@ -5,12 +5,11 @@ import threading
 from datetime import datetime
 
 from app.utils.helpers import get_current_month_range
+from app.services.hosxp_service import sync_data_from_hosxp
 
 
 def run_sync_job():
     """Scheduled sync job — syncs data from HosXP to SQLite cache."""
-    # Import here to avoid circular imports at module level
-    from app.services.hosxp_service import sync_data_from_hosxp
 
     start_date, end_date = get_current_month_range()
     print(f"⏰ Automatic Sync Started: {start_date} to {end_date}")

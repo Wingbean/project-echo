@@ -14,6 +14,11 @@ Usage:
 """
 
 from app.config import Config
+try:
+    import gspread
+    from oauth2client.service_account import ServiceAccountCredentials
+except ImportError:
+    pass
 
 
 class SheetService:
@@ -39,9 +44,10 @@ class SheetService:
             return self._client
 
         try:
-            import gspread
-            from oauth2client.service_account import ServiceAccountCredentials
-        except ImportError:
+            # ensure imports succeeded
+            gspread
+            ServiceAccountCredentials
+        except NameError:
             raise ImportError(
                 "Google Sheets integration requires gspread and oauth2client. "
                 "Install with: uv add gspread oauth2client"

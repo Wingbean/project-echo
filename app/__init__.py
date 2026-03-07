@@ -1,9 +1,14 @@
 # app/__init__.py - Flask Application Factory
+import os
+import fcntl
 from flask import Flask
 from flask_wtf.csrf import CSRFProtect
 
 csrf = CSRFProtect()
 
+from app.api import api_bp, views_bp
+from app.services.hosxp_service import get_last_sync_time
+from app.services.scheduler_service import start_scheduler
 
 def create_app():
     """Create and configure the Flask application."""
@@ -20,11 +25,9 @@ def create_app():
     csrf.init_app(app)
 
     # Ensure instance directory exists
-    import os
     os.makedirs(app.config.get("INSTANCE_DIR", "instance"), exist_ok=True)
 
     # Register blueprints
-    from app.api import api_bp, views_bp
     app.register_blueprint(api_bp, url_prefix="/api")
     app.register_blueprint(views_bp)
 
@@ -69,7 +72,6 @@ def _register_context_processors(app):
 
     @app.context_processor
     def inject_globals():
-        from app.services.hosxp_service import get_last_sync_time
         return dict(
             last_sync=get_last_sync_time(),
             app_name="Project Echo",
@@ -78,9 +80,6 @@ def _register_context_processors(app):
 
 def _start_scheduler(app):
     """Start the background scheduler (only one worker)."""
-    import os
-    import fcntl
-
     lock_path = os.path.join(
         app.config.get("INSTANCE_DIR", "instance"), "scheduler.lock"
     )
@@ -88,7 +87,6 @@ def _start_scheduler(app):
         lock_fd = open(lock_path, "w")
         fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         print("✅ Scheduler lock acquired. Starting scheduler thread.")
-        from app.services.scheduler_service import start_scheduler
         start_scheduler()
     except (BlockingIOError, OSError):
         print("⏳ Scheduler is already running in another worker. Skipping.")
