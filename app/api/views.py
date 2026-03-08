@@ -37,8 +37,25 @@ def a1c_page():
 
 @views_bp.route("/emr")
 def emr_page():
-    """EMR (Electronic Medical Record) search page."""
+    """EMR (Electronic Medical Record) search page. Requires authentication."""
+    if not session.get("emr_authenticated"):
+        return redirect(url_for("views.emr_login_page"))
     return render_template("pages/emr.html")
+
+
+@views_bp.route("/emr/login")
+def emr_login_page():
+    """EMR login page - enter secret code to access."""
+    if session.get("emr_authenticated"):
+        return redirect(url_for("views.emr_page"))
+    return render_template("pages/emr_login.html")
+
+
+@views_bp.route("/emr/logout")
+def emr_logout():
+    """Clear EMR authentication and redirect to index."""
+    session.pop("emr_authenticated", None)
+    return redirect(url_for("views.index"))
 
 
 @views_bp.route("/echo")

@@ -1,0 +1,228 @@
+{% extends "base.html" %} {% block title %}EMR Login - Project Echo{% endblock
+%} {% block extra_css %}
+<meta name="csrf-token" content="{{ csrf_token() }}" />
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/components/form.css') }}"
+/>
+<style>
+  .echo-login-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+  }
+
+  .echo-login-card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-2xl);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+    text-align: center;
+  }
+
+  .echo-login-icon {
+    font-size: 3rem;
+    color: var(--color-primary);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .echo-login-title {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .echo-login-subtitle {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .echo-code-input {
+    width: 100%;
+    padding: 14px 16px;
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-family: var(--font-primary);
+    font-size: var(--font-size-lg);
+    color: var(--color-text-primary);
+    background: var(--color-surface);
+    text-align: center;
+    letter-spacing: 0.3em;
+    transition: all var(--transition-fast);
+  }
+
+  .echo-code-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.15);
+  }
+
+  .echo-code-input::placeholder {
+    letter-spacing: normal;
+    color: var(--color-text-muted);
+  }
+
+  .echo-submit-btn {
+    width: 100%;
+    padding: 12px 24px;
+    margin-top: var(--spacing-lg);
+    border: none;
+    border-radius: var(--radius-md);
+    background: var(--color-primary);
+    color: #fff;
+    font-family: var(--font-primary);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+  }
+
+  .echo-submit-btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.3);
+  }
+
+  .echo-submit-btn:active {
+    transform: translateY(0);
+  }
+
+  .echo-submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .echo-error-msg {
+    margin-top: var(--spacing-md);
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--color-error);
+    font-size: var(--font-size-sm);
+    display: none;
+  }
+
+  .echo-error-msg.show {
+    display: block;
+    animation: shakeX 0.4s ease;
+  }
+
+  @keyframes shakeX {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    20%,
+    60% {
+      transform: translateX(-6px);
+    }
+    40%,
+    80% {
+      transform: translateX(6px);
+    }
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="echo-login-wrapper">
+  <div class="echo-login-card">
+    <div class="echo-login-icon">
+      <span class="material-symbols-rounded" style="font-size: inherit"
+        >lock</span
+      >
+    </div>
+    <h1 class="echo-login-title">EMR</h1>
+    <p class="echo-login-subtitle">กรุณากรอกรหัสเพื่อเข้าถึงหน้านี้</p>
+
+    <form id="emrLoginForm" onsubmit="return false;">
+      <input
+        type="password"
+        id="emrCodeInput"
+        class="echo-code-input"
+        placeholder="กรอกรหัส..."
+        autocomplete="off"
+        autofocus
+      />
+      <button type="submit" class="echo-submit-btn" id="emrSubmitBtn">
+        <span class="material-symbols-rounded">login</span>
+        เข้าสู่ระบบ
+      </button>
+    </form>
+
+    <div class="echo-error-msg" id="emrErrorMsg"></div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("emrLoginForm");
+    const input = document.getElementById("emrCodeInput");
+    const btn = document.getElementById("emrSubmitBtn");
+    const errorMsg = document.getElementById("emrErrorMsg");
+    const csrfToken = document
+      .querySelector('meta[name="csrf-token"]')
+      .getAttribute("content");
+
+    form.addEventListener("submit", async function () {
+      const code = input.value.trim();
+      if (!code) {
+        showError("กรุณากรอกรหัส");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML =
+        '<span class="material-symbols-rounded">hourglass_top</span> กำลังตรวจสอบ...';
+      hideError();
+
+      try {
+        const res = await fetch("/api/verify_emr", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken,
+          },
+          body: JSON.stringify({ code: code }),
+        });
+
+        const data = await res.json();
+
+        if (data.status === "success") {
+          window.location.href = "/emr";
+        } else {
+          showError(data.message || "รหัสไม่ถูกต้อง");
+          input.value = "";
+          input.focus();
+        }
+      } catch (err) {
+        showError("เกิดข้อผิดพลาด กรุณาลองใหม่");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML =
+          '<span class="material-symbols-rounded">login</span> เข้าสู่ระบบ';
+      }
+    });
+
+    function showError(msg) {
+      errorMsg.textContent = msg;
+      errorMsg.classList.remove("show");
+      void errorMsg.offsetWidth;
+      errorMsg.classList.add("show");
+    }
+
+    function hideError() {
+      errorMsg.classList.remove("show");
+    }
+  });
+</script>
+{% endblock %}

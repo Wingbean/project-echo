@@ -69,16 +69,16 @@ def _verify_sync_pin() -> tuple[bool, dict]:
     return True, {}
 
 
-# --- Echo Verification ---
+# --- Secret Code Verification ---
 
-@api_bp.route("/verify_echo", methods=["POST"])
-def verify_echo():
-    """Verify the echo secret code.
+def _verify_secret_code(session_key: str):
+    """Shared verification logic for secret code protected pages.
 
-    Expects JSON body with:
-        - code: The secret code to verify.
+    Args:
+        session_key: The session key to set on success (e.g. 'echo_authenticated').
 
-    Sets session['echo_authenticated'] = True on success.
+    Returns:
+        Flask JSON response tuple.
     """
     data = request.get_json(silent=True)
     if not data or not data.get("code"):
@@ -93,8 +93,20 @@ def verify_echo():
     if code != correct_code:
         return jsonify({"status": "error", "message": "รหัสไม่ถูกต้อง"}), 401
 
-    session["echo_authenticated"] = True
+    session[session_key] = True
     return jsonify({"status": "success", "message": "ยืนยันรหัสสำเร็จ"})
+
+
+@api_bp.route("/verify_echo", methods=["POST"])
+def verify_echo():
+    """Verify secret code for Echo page access."""
+    return _verify_secret_code("echo_authenticated")
+
+
+@api_bp.route("/verify_emr", methods=["POST"])
+def verify_emr():
+    """Verify secret code for EMR page access."""
+    return _verify_secret_code("emr_authenticated")
 
 
 # --- Sync Endpoints ---

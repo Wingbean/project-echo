@@ -56,20 +56,25 @@ document.addEventListener("DOMContentLoaded", () => {
                     </div>
 
                     <!-- Right Pane -->
-                    <div class="emr-right-pane">
-                        <div class="emr-col">
-                            <div class="emr-field"><div class="emr-label wide">Dx_Text</div><div class="emr-value" style="font-weight: 500;">${val("Dx_Text")}</div></div>
-                            <div class="emr-field"><div class="emr-label wide" style="color: var(--teal-600);">PDx</div><div class="emr-value" style="font-weight: 600;">${val("PDx")}</div></div>
-                            <div class="emr-field"><div class="emr-label wide">Dx1</div><div class="emr-value">${val("Dx1")}</div></div>
-                            <div class="emr-field"><div class="emr-label wide">Dx2</div><div class="emr-value">${val("Dx2")}</div></div>
-                            <div class="emr-field"><div class="emr-label wide">Dx3</div><div class="emr-value">${val("Dx3")}</div></div>
+                    <div class="emr-right-pane" style="display: block;">
+                        <div class="emr-field full" style="margin-bottom: 0.5rem;">
+                            <div class="emr-label large">Dx_Text</div>
+                            <div class="emr-value textarea" style="font-weight: 500;">${val("Dx_Text")}</div>
                         </div>
-                        <div class="emr-col">
-                            <div class="emr-field"><div class="emr-label wide">op1</div><div class="emr-value">${val("op1")}</div></div>
-                            <div class="emr-field"><div class="emr-label wide">op2</div><div class="emr-value">${val("op2")}</div></div>
-                            <div class="emr-field"><div class="emr-label wide">op3</div><div class="emr-value">${val("op3")}</div></div>
-                            <div class="emr-field"><div class="emr-label wide">op4</div><div class="emr-value">${val("op4")}</div></div>
-                            <div class="emr-field"><div class="emr-label wide">op5</div><div class="emr-value">${val("op5")}</div></div>
+                        <div style="display: flex; gap: 1rem;">
+                            <div class="emr-col" style="flex: 1;">
+                                <div class="emr-field"><div class="emr-label wide" style="color: var(--teal-600);">PDx</div><div class="emr-value" style="font-weight: 600;">${val("PDx")}</div></div>
+                                <div class="emr-field"><div class="emr-label wide">Dx1</div><div class="emr-value">${val("Dx1")}</div></div>
+                                <div class="emr-field"><div class="emr-label wide">Dx2</div><div class="emr-value">${val("Dx2")}</div></div>
+                                <div class="emr-field"><div class="emr-label wide">Dx3</div><div class="emr-value">${val("Dx3")}</div></div>
+                            </div>
+                            <div class="emr-col" style="flex: 1;">
+                                <div class="emr-field"><div class="emr-label wide">op1</div><div class="emr-value">${val("op1")}</div></div>
+                                <div class="emr-field"><div class="emr-label wide">op2</div><div class="emr-value">${val("op2")}</div></div>
+                                <div class="emr-field"><div class="emr-label wide">op3</div><div class="emr-value">${val("op3")}</div></div>
+                                <div class="emr-field"><div class="emr-label wide">op4</div><div class="emr-value">${val("op4")}</div></div>
+                                <div class="emr-field"><div class="emr-label wide">op5</div><div class="emr-value">${val("op5")}</div></div>
+                            </div>
                         </div>
                     </div>
                 </div>`;

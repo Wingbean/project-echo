@@ -102,20 +102,25 @@ document.addEventListener("DOMContentLoaded", () => {
                     </div>
                 </div>
                 <!-- Right Pane -->
-                <div class="emr-right-pane">
-                    <div class="emr-col">
-                        <div class="emr-field"><div class="emr-label wide">Dx_Text</div><div class="emr-value" style="font-weight: 500;">${val("Dx_Text")}</div></div>
-                        <div class="emr-field"><div class="emr-label wide" style="color: var(--teal-600);">PDx</div><div class="emr-value" style="font-weight: 600;">${val("PDx")}</div></div>
-                        <div class="emr-field"><div class="emr-label wide">Dx1</div><div class="emr-value">${val("Dx1")}</div></div>
-                        <div class="emr-field"><div class="emr-label wide">Dx2</div><div class="emr-value">${val("Dx2")}</div></div>
-                        <div class="emr-field"><div class="emr-label wide">Dx3</div><div class="emr-value">${val("Dx3")}</div></div>
+                <div class="emr-right-pane" style="display: block;">
+                    <div class="emr-field full" style="margin-bottom: 0.5rem;">
+                        <div class="emr-label large">Dx_Text</div>
+                        <div class="emr-value textarea" style="font-weight: 500;">${val("Dx_Text")}</div>
                     </div>
-                    <div class="emr-col">
-                        <div class="emr-field"><div class="emr-label wide">op1</div><div class="emr-value">${val("op1")}</div></div>
-                        <div class="emr-field"><div class="emr-label wide">op2</div><div class="emr-value">${val("op2")}</div></div>
-                        <div class="emr-field"><div class="emr-label wide">op3</div><div class="emr-value">${val("op3")}</div></div>
-                        <div class="emr-field"><div class="emr-label wide">op4</div><div class="emr-value">${val("op4")}</div></div>
-                        <div class="emr-field"><div class="emr-label wide">op5</div><div class="emr-value">${val("op5")}</div></div>
+                    <div style="display: flex; gap: 1rem;">
+                        <div class="emr-col" style="flex: 1;">
+                            <div class="emr-field"><div class="emr-label wide" style="color: var(--teal-600);">PDx</div><div class="emr-value" style="font-weight: 600;">${val("PDx")}</div></div>
+                            <div class="emr-field"><div class="emr-label wide">Dx1</div><div class="emr-value">${val("Dx1")}</div></div>
+                            <div class="emr-field"><div class="emr-label wide">Dx2</div><div class="emr-value">${val("Dx2")}</div></div>
+                            <div class="emr-field"><div class="emr-label wide">Dx3</div><div class="emr-value">${val("Dx3")}</div></div>
+                        </div>
+                        <div class="emr-col" style="flex: 1;">
+                            <div class="emr-field"><div class="emr-label wide">op1</div><div class="emr-value">${val("op1")}</div></div>
+                            <div class="emr-field"><div class="emr-label wide">op2</div><div class="emr-value">${val("op2")}</div></div>
+                            <div class="emr-field"><div class="emr-label wide">op3</div><div class="emr-value">${val("op3")}</div></div>
+                            <div class="emr-field"><div class="emr-label wide">op4</div><div class="emr-value">${val("op4")}</div></div>
+                            <div class="emr-field"><div class="emr-label wide">op5</div><div class="emr-value">${val("op5")}</div></div>
+                        </div>
                     </div>
                 </div>
             </div>`;
@@ -156,8 +161,12 @@ document.addEventListener("DOMContentLoaded", () => {
   // Custom Fetch & Render Orchestrator
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const hn = hnInput.value.trim();
+    let hn = hnInput.value.trim();
     if (!hn) return;
+
+    // Pad HN to 7 digits with leading zeros
+    hn = hn.padStart(7, "0");
+    hnInput.value = hn;
 
     hideResults();
 
@@ -233,11 +242,7 @@ document.addEventListener("DOMContentLoaded", () => {
           `${records.length} รายการ`;
         if (records.length > 0)
           document.getElementById("echoConsultTable").innerHTML =
-            EchoUtils.buildTable(
-              records,
-              consultRes.value.columns,
-              "ไม่มีข้อมูลปรึกษา",
-            );
+            EchoUtils.buildTable(consultRes.value.columns, records);
         else
           document.getElementById("echoConsultTable").innerHTML =
             '<div class="no-data">ไม่พบประวัติ Consult</div>';
@@ -258,11 +263,7 @@ document.addEventListener("DOMContentLoaded", () => {
           `${records.length} รายการ`;
         if (records.length > 0)
           document.getElementById("echoFlowOpdTable").innerHTML =
-            EchoUtils.buildTable(
-              records,
-              opdFlowRes.value.columns,
-              "ไม่มีข้อมูลเส้นทาง",
-            );
+            EchoUtils.buildTable(opdFlowRes.value.columns, records);
         else
           document.getElementById("echoFlowOpdTable").innerHTML =
             '<div class="no-data">ไม่พบประวัติ OPD Flow ในวันนี้</div>';
@@ -284,9 +285,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (records.length > 0) {
           const tableHtml = EchoUtils.buildTable(
-            records,
             egfrRes.value.columns,
-            "ไม่มีข้อมูล",
+            records,
+            {
+              cellRenderers: {
+                CKD_Stage: (val) => {
+                  if (!val) return val;
+                  const stage = String(val).toLowerCase();
+                  let bgColor = "";
+                  if (stage === "1") bgColor = "#22c55e";
+                  else if (stage === "2") bgColor = "#eab308";
+                  else if (stage === "3a") bgColor = "#f59e0b";
+                  else if (stage === "3b") bgColor = "#ea580c";
+                  else if (stage === "4") bgColor = "#ef4444";
+                  else if (stage === "5") bgColor = "#991b1b";
+                  else return val;
+                  return {
+                    content: `<span style="background-color: ${bgColor}; color: white; font-weight: 600; padding: 2px 10px; border-radius: 12px; display: inline-block; min-width: 40px; text-align: center;">${EchoUtils.escapeHtml(val)}</span>`,
+                    style: "text-align: center; vertical-align: middle;",
+                  };
+                },
+              },
+            },
           );
           document.getElementById("echoEgfrTable").innerHTML = tableHtml;
 
@@ -347,7 +367,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (records.length > 0) {
           document.getElementById("echoA1cTable").innerHTML =
-            EchoUtils.buildTable(records, a1cRes.value.columns, "ไม่มีข้อมูล");
+            EchoUtils.buildTable(a1cRes.value.columns, records, {
+              cellRenderers: {
+                Status: (val) => {
+                  if (!val) return val;
+                  const status = String(val).toLowerCase();
+                  let bgColor = "#6b7280";
+                  if (status === "control") bgColor = "#22c55e";
+                  else if (status === "uncontrol") bgColor = "#ef4444";
+                  return {
+                    content: `<span style="background-color: ${bgColor}; color: white; font-weight: 600; padding: 2px 10px; border-radius: 12px; display: inline-block; min-width: 60px; text-align: center;">${EchoUtils.escapeHtml(val)}</span>`,
+                    style: "text-align: center; vertical-align: middle;",
+                  };
+                },
+              },
+            });
           const sorted = [...records].reverse();
           const labels = sorted.map((r) => r.LabDate);
           const dataValues = sorted.map((r) => parseFloat(r.result));
