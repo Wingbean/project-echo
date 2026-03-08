@@ -337,14 +337,53 @@ def emr_search():
         return jsonify({"status": "error", "message": "HN ต้องเป็นตัวเลขเท่านั้น"}), 400
 
     try:
+        # Fetch Diagnosis and History
         df = execute_sql_on_hosxp("emr_hx_pe_dx_op.sql", params={"hn": hn})
         df = df.fillna("")
         columns = df.columns.tolist()
         records = df.to_dict(orient="records")
 
-        # Convert objects to strings for JSON
+        # Fetch Rx data
+        try:
+            rx_df = execute_sql_on_hosxp("emr_rx.sql", params={"hn": hn})
+            rx_df = rx_df.fillna("")
+            rx_records = rx_df.to_dict(orient="records")
+        except Exception as e:
+            print(f"Failed to fetch rx data: {e}")
+            rx_records = []
+
+        # Group Rx records by VN
+        rx_by_vn = {}
+        for rx in rx_records:
+            vn = str(rx.get("vn", ""))
+            if not vn: continue
+            if vn not in rx_by_vn:
+                rx_by_vn[vn] = []
+            
+            # Formatting values for Rx serialization
+            processed_rx = {}
+            for key, val in rx.items():
+                if hasattr(val, "components"):
+                    ts = str(val).split()[-1]
+                    processed_rx[key] = ts.split('.')[0]
+                elif hasattr(val, "isoformat"):
+                    dt_str = val.isoformat()
+                    processed_rx[key] = "" if dt_str == "NaT" else dt_str
+                elif val is None:
+                    processed_rx[key] = ""
+                else:
+                    processed_rx[key] = str(val) if not isinstance(val, (int, float, str, bool)) else val
+                    
+            rx_by_vn[vn].append(processed_rx)
+
+        # Merge Rx into records
         for record in records:
+            vn = str(record.get("VN", ""))
+            record["rx_list"] = rx_by_vn.get(vn, [])
+            
+            # Convert objects to strings for JSON
             for key, val in record.items():
+                if key == "rx_list": continue
                 if hasattr(val, "components"):
                     ts = str(val).split()[-1]
                     record[key] = ts.split('.')[0]

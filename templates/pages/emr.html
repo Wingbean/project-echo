@@ -321,7 +321,39 @@
                             <div class="emr-field"><div class="emr-label wide">op5</div><div class="emr-value">${val("op5")}</div></div>
                         </div>
                     </div>
-                </div>
+                </div>`;
+
+        // Render Rx if exists
+        const rxList = row.rx_list || [];
+        if (rxList.length > 0) {
+          html += `
+                <div style="padding: 0 1.5rem 1.5rem 1.5rem;">
+                    <div style="color: var(--teal-700); font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; font-weight: 600;">
+                        <span class="material-symbols-rounded" style="font-size: 1.2rem;">prescriptions</span>
+                        รายการยา (Prescriptions)
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;">
+                        <div style="display: flex; padding: 0 0.75rem; font-weight: 600; font-size: 0.85rem; color: var(--text-muted); gap: 1rem;">
+                            <div style="flex: 2; min-width: 150px;">รายการยา</div>
+                            <div style="flex: 3; min-width: 200px;">วิธีใช้</div>
+                            <div style="flex: 0 0 60px; text-align: right;">จำนวน</div>
+                        </div>
+                        ${rxList
+                          .map(
+                            (rx) => `
+                            <div class="emr-value" style="display: flex; align-items: center; padding: 0.5rem 0.75rem; min-height: 40px; margin: 0; gap: 1rem; flex-wrap: wrap;">
+                                <div style="flex: 2; min-width: 150px; font-weight: 500; color: #111827;">${EchoUtils.escapeHtml(rx.dName || "-")}</div>
+                                <div style="flex: 3; min-width: 200px; color: #374151;">${EchoUtils.escapeHtml(rx.use || "-")}</div>
+                                <div style="flex: 0 0 60px; text-align: right; font-weight: 600; color: #111827;">${EchoUtils.escapeHtml(String(rx.qty || "0"))}</div>
+                            </div>
+                        `,
+                          )
+                          .join("")}
+                    </div>
+                </div>`;
+        }
+
+        html += `
             </div>`;
       });
 
