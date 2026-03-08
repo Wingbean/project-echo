@@ -35,6 +35,12 @@ def a1c_page():
     return render_template("pages/a1c.html")
 
 
+@views_bp.route("/inr")
+def inr_page():
+    """INR lab result search page."""
+    return render_template("pages/inr.html")
+
+
 @views_bp.route("/emr")
 def emr_page():
     """EMR (Electronic Medical Record) search page. Requires authentication."""

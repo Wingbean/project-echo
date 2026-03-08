@@ -60,6 +60,15 @@
       </li>
       <li class="nav-item">
         <a
+          href="{{ url_for('views.inr_page') }}"
+          class="nav-link {% if request.endpoint == 'views.inr_page' %}active{% endif %}"
+        >
+          <span class="material-symbols-rounded">science</span>
+          <span>INR</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a
           href="{{ url_for('views.emr_page') }}"
           class="nav-link {% if request.endpoint == 'views.emr_page' %}active{% endif %}"
         >

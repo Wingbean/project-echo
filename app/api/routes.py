@@ -353,6 +353,59 @@ def a1c_search():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+# --- INR Endpoint ---
+
+@api_bp.route("/inr", methods=["POST"])
+def inr_search():
+    """Search INR records by HN.
+
+    Expects JSON body with:
+        - hn: Patient hospital number (string).
+
+    Returns:
+        JSON with columns and records from inr.sql.
+    """
+    data = request.get_json(silent=True)
+    if not data or not data.get("hn"):
+        return jsonify({"status": "error", "message": "กรุณาระบุ HN"}), 400
+
+    hn = str(data["hn"]).strip()
+    hn = hn.zfill(7) # pad with leading zeros
+
+    # Validate HN: only digits allowed
+    if not re.match(r"^\d+$", hn):
+        return jsonify({"status": "error", "message": "HN ต้องเป็นตัวเลขเท่านั้น"}), 400
+
+    try:
+        df = execute_sql_on_hosxp("inr.sql", params={"hn": hn})
+        df = df.fillna("")
+        columns = df.columns.tolist()
+        records = df.to_dict(orient="records")
+
+        # Convert objects to strings for JSON
+        for record in records:
+            for key, val in record.items():
+                if hasattr(val, "components"):
+                    ts = str(val).split()[-1]
+                    record[key] = ts.split('.')[0]
+                elif hasattr(val, "isoformat"):
+                    dt_str = val.isoformat()
+                    record[key] = "" if dt_str == "NaT" else dt_str
+                elif val is None:
+                    record[key] = ""
+                else:
+                    record[key] = str(val) if not isinstance(val, (int, float, str, bool)) else val
+
+        return jsonify({
+            "status": "success",
+            "columns": columns,
+            "records": records,
+            "total": len(records),
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 # --- EMR Endpoint ---
 
 @api_bp.route("/emr", methods=["POST"])

@@ -1,0 +1,58 @@
+{% extends "base.html" %} {% block title %}INR - Project Echo{% endblock %} {%
+block extra_css %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/components/form.css') }}"
+/>
+
+{% endblock %} {% block content %} {% from 'components/search_form.html' import
+render_search_form %}
+<section class="page-section theme-amber">
+  <div class="section-card">
+    <div class="section-header">
+      <h2 class="section-title">
+        <span class="material-symbols-rounded">science</span>
+        INR — ค้นหาผลแล็บการแข็งตัวของเลือด
+      </h2>
+    </div>
+    <div class="section-body">
+      {{ render_search_form('inrForm', 'กรอกเลข HN
+      ของผู้ป่วยเพื่อค้นหาประวัติผลแล็บ INR ย้อนหลัง', 'ค้นหาผล INR') }}
+    </div>
+  </div>
+
+  {# Results area #}
+  <div class="section-card" id="resultsSection" style="display: none">
+    <div class="section-header">
+      <h2 class="section-title">
+        <span class="material-symbols-rounded">table_chart</span>
+        ประวัติผลแล็บ INR
+      </h2>
+      <div class="results-meta">
+        <span class="badge" id="hnBadge"></span>
+        <span class="badge" id="resultCount">0 รายการ</span>
+      </div>
+    </div>
+    <div class="section-body">
+      <div
+        class="chart-container"
+        style="
+          position: relative;
+          height: 300px;
+          width: 100%;
+          margin-bottom: 2rem;
+          display: none;
+        "
+        id="inrChartContainer"
+      >
+        <canvas id="inrChart"></canvas>
+      </div>
+      <div class="table-responsive" id="resultsTable"></div>
+    </div>
+  </div>
+</section>
+{% endblock %} {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<script src="{{ url_for('static', filename='js/pages/inr.js') }}"></script>
+{% endblock %}
