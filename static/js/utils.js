@@ -27,6 +27,24 @@ const EchoUtils = {
   },
 
   /**
+   * Convert Gregorian Date strings to Thai Buddhist Era (+543 years).
+   * Applies only to YYYY-MM-DD format visually.
+   * @param {string} str - String potentially containing dates.
+   * @returns {string} Formatted string with Thai years.
+   */
+  formatThaiDate(str) {
+    if (!str || typeof str !== "string") return str;
+    // Matches YYYY-MM-DD where YYYY is between 1900 and 2199
+    return str.replace(
+      /\b(19|20|21)(\d{2})-(\d{2})-(\d{2})\b/g,
+      (match, century, year, month, day) => {
+        const beYear = parseInt(century + year, 10) + 543;
+        return `${beYear}-${month}-${day}`;
+      },
+    );
+  },
+
+  /**
    * Build an HTML table from columns and records.
    * @param {string[]} columns - Column names.
    * @param {Object[]} records - Array of row objects.
@@ -181,6 +199,15 @@ const EchoUtils = {
 
         const records = data.records || [];
         const columns = data.columns || [];
+
+        // Globally convert Gregorian Dates to Thai Buddhist Era for display
+        records.forEach((record) => {
+          Object.keys(record).forEach((key) => {
+            if (typeof record[key] === "string") {
+              record[key] = EchoUtils.formatThaiDate(record[key]);
+            }
+          });
+        });
 
         hnBadge.textContent = "HN: " + hn;
         resultCount.textContent = records.length + " รายการ";

@@ -2,73 +2,31 @@
 %} {% block extra_css %}
 <link
   rel="stylesheet"
+  href="{{ url_for('static', filename='css/components/form.css') }}"
+/>
+<link
+  rel="stylesheet"
   href="{{ url_for('static', filename='css/pages/emr.css') }}"
 />
 {% endblock %} {% block content %}
-<div
-  class="page-header"
-  style="
-    background: linear-gradient(
-      135deg,
-      var(--teal-500, #14b8a6) 0%,
-      var(--teal-700, #0f766e) 100%
-    );
-  "
->
-  <div class="header-content">
-    <h1 class="page-title">
-      <span class="material-symbols-rounded">recent_patient</span>
-      EMR
-    </h1>
-    <p class="page-subtitle">
-      สืบค้นประวัติการรักษาผู้ป่วยนอก (Hx, PE, Dx, OP)
-    </p>
+<section class="page-section theme-teal">
+  <div class="section-card">
+    <div class="section-header">
+      <h2 class="section-title">
+        <span class="material-symbols-rounded">recent_patient</span>
+        EMR — สืบค้นเมื่อการรักษาผู้ป่วยนอก (Hx, PE, Dx, OP)
+      </h2>
+    </div>
+    <div class="section-body">
+      {% from 'components/search_form.html' import render_search_form %} {{
+      render_search_form('emrSearchForm', 'ระบบจะเติมเลข 0 ด้านหน้าให้ครบ 7
+      หลักอัตโนมัติ', 'ค้นหาข้อมูล') }}
+    </div>
   </div>
-</div>
 
-<div class="search-container">
-  <form id="emrSearchForm" class="search-form">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-    <div class="search-input-group">
-      <label for="hnInput" class="search-label">ค้นหาด้วย HN</label>
-      <div class="input-wrapper">
-        <span class="material-symbols-rounded input-icon">search</span>
-        <input
-          type="text"
-          id="hnInput"
-          class="search-input"
-          placeholder="ระบุ HN 7 หลัก (เช่น 0012000)"
-          autocomplete="off"
-          required
-        />
-      </div>
-      <p class="input-help">ระบบจะเติมเลข 0 ด้านหน้าให้ครบ 7 หลักอัตโนมัติ</p>
-    </div>
-    <div class="search-actions">
-      <button
-        type="submit"
-        class="btn btn-primary"
-        id="searchBtn"
-        style="
-          background-color: var(--teal-600, #0d9488);
-          border-color: var(--teal-600, #0d9488);
-        "
-      >
-        <span class="material-symbols-rounded">search</span>
-        ค้นหาข้อมูล
-      </button>
-      <button type="button" class="btn btn-outline" id="resetBtn">
-        <span class="material-symbols-rounded">restart_alt</span>
-        เริ่มใหม่
-      </button>
-    </div>
-  </form>
-</div>
-
-<div id="resultsSection" class="results-section" style="display: none">
-  <div class="results-header">
-    <div class="results-title-group">
-      <h2 class="results-title">
+  <div id="resultsSection" class="section-card" style="display: none">
+    <div class="section-header">
+      <h2 class="section-title">
         <span
           class="material-symbols-rounded"
           style="color: var(--teal-500, #14b8a6)"
@@ -76,22 +34,20 @@
         >
         ประวัติการรักษา
       </h2>
-      <span class="badge" id="hnBadge"></span>
+      <div class="results-meta">
+        <span class="badge badge-info" id="hnBadge"></span>
+        <span class="badge" id="resultCount"></span>
+      </div>
     </div>
-    <div class="results-meta">
-      <span class="result-count" id="resultCount"></span>
+    <div
+      class="section-body"
+      id="resultsTable"
+      style="background: transparent; border: none; padding: 0"
+    >
+      <!-- Javascript will inject the VN cards here -->
     </div>
   </div>
-  <div
-    class="results-body"
-    id="resultsTable"
-    style="background: transparent; border: none; padding: 0"
-  >
-    <!-- Javascript will inject the VN cards here -->
-  </div>
-</div>
-
+</section>
 {% endblock %} {% block extra_js %}
-
 <script src="{{ url_for('static', filename='js/pages/emr.js') }}"></script>
 {% endblock %}

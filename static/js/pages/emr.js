@@ -1,19 +1,19 @@
 document.addEventListener("DOMContentLoaded", () => {
-    // Custom render function for EMR cards
-    const renderEMRCards = (records) => {
-      if (!records || records.length === 0) return "";
+  // Custom render function for EMR cards
+  const renderEMRCards = (records) => {
+    if (!records || records.length === 0) return "";
 
-      let html = '<div class="emr-cards-container">';
+    let html = '<div class="emr-cards-container">';
 
-      records.forEach((row) => {
-        const val = (key) => {
-          const v = row[key];
-          return v
-            ? EchoUtils.escapeHtml(String(v))
-            : '<span style="color: var(--text-muted); opacity: 0.5;">-</span>';
-        };
+    records.forEach((row) => {
+      const val = (key) => {
+        const v = row[key];
+        return v
+          ? EchoUtils.escapeHtml(String(v))
+          : '<span style="color: var(--text-muted); opacity: 0.5;">-</span>';
+      };
 
-        html += `
+      html += `
             <div class="emr-card">
                 <div class="emr-card-header">
                     <div style="display: flex; align-items: center; gap: 0.75rem;">
@@ -73,10 +73,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     </div>
                 </div>`;
 
-        // Render Rx if exists
-        const rxList = row.rx_list || [];
-        if (rxList.length > 0) {
-          html += `
+      // Render Rx if exists
+      const rxList = row.rx_list || [];
+      if (rxList.length > 0) {
+        html += `
                 <div style="padding: 0 1.5rem 1.5rem 1.5rem;">
                     <div style="color: var(--teal-700); font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; font-weight: 600;">
                         <span class="material-symbols-rounded" style="font-size: 1.2rem;">prescriptions</span>
@@ -101,30 +101,30 @@ document.addEventListener("DOMContentLoaded", () => {
                           .join("")}
                     </div>
                 </div>`;
-        }
+      }
 
-        html += `
+      html += `
             </div>`;
-      });
-
-      html += "</div>";
-      return html;
-    };
-
-    EchoUtils.setupHnSearch({
-      apiUrl: "/api/emr",
-      formId: "emrSearchForm",
-      hnInputId: "hnInput",
-      submitBtnId: "searchBtn",
-      resetBtnId: "resetBtn",
-      resultsSectionId: "resultsSection",
-      resultsTableId: "resultsTable",
-      resultCountId: "resultCount",
-      hnBadgeId: "hnBadge",
-      loadingMessage: "กำลังดึงประวัติการรักษา EMR สำหรับ HN:",
-      noDataMessage: "ไม่พบประวัติการรักษา EMR สำหรับ HN:",
-      submitButtonHtml:
-        '<span class="material-symbols-rounded">search</span> ค้นหาข้อมูล',
-      customRender: renderEMRCards,
     });
+
+    html += "</div>";
+    return html;
+  };
+
+  EchoUtils.setupHnSearch({
+    apiUrl: "/api/emr",
+    formId: "emrSearchForm",
+    hnInputId: "hnInput",
+    submitBtnId: "submitBtn",
+    resetBtnId: "resetBtn",
+    resultsSectionId: "resultsSection",
+    resultsTableId: "resultsTable",
+    resultCountId: "resultCount",
+    hnBadgeId: "hnBadge",
+    loadingMessage: "กำลังดึงประวัติการรักษา EMR สำหรับ HN:",
+    noDataMessage: "ไม่พบประวัติการรักษา EMR สำหรับ HN:",
+    submitButtonHtml:
+      '<span class="material-symbols-rounded">search</span> ค้นหาข้อมูล',
+    customRender: renderEMRCards,
   });
+});
