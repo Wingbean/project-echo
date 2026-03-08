@@ -36,6 +36,9 @@ class Config:
     # Sync PIN
     SYNC_PIN = os.getenv("SYNC_PIN", "")
 
+    # Echo Secret Code
+    ECHO_SECRET_CODE = os.getenv("ECHO_SECRET_CODE", "")
+
     # Google Sheets (Optional)
     GOOGLE_SHEETS_CREDENTIALS = os.getenv("GOOGLE_SHEETS_CREDENTIALS", "")
     SPREADSHEET_ID = os.getenv("SPREADSHEET_ID", "")

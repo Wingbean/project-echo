@@ -1,5 +1,5 @@
 # app/api/views.py - Page Rendering Routes
-from flask import render_template
+from flask import render_template, session, redirect, url_for
 from app.api import views_bp
 from app.services.render_service import get_dashboard_data
 
@@ -43,5 +43,22 @@ def emr_page():
 
 @views_bp.route("/echo")
 def echo_page():
-    """Secret integrated dashboard page."""
+    """Secret integrated dashboard page. Requires authentication."""
+    if not session.get("echo_authenticated"):
+        return redirect(url_for("views.echo_login_page"))
     return render_template("pages/echo.html")
+
+
+@views_bp.route("/echo/login")
+def echo_login_page():
+    """Echo login page - enter secret code to access."""
+    if session.get("echo_authenticated"):
+        return redirect(url_for("views.echo_page"))
+    return render_template("pages/echo_login.html")
+
+
+@views_bp.route("/echo/logout")
+def echo_logout():
+    """Clear echo authentication and redirect to login."""
+    session.pop("echo_authenticated", None)
+    return redirect(url_for("views.index"))

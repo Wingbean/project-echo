@@ -5,7 +5,7 @@ import threading
 import time
 import re
 
-from flask import jsonify, request
+from flask import jsonify, request, session
 from app.api import api_bp
 from app import csrf
 from app.config import Config
@@ -67,6 +67,34 @@ def _verify_sync_pin() -> tuple[bool, dict]:
     if pin != correct_pin:
         return False, {"status": "error", "message": "รหัสผ่านไม่ถูกต้อง (Invalid PIN)"}
     return True, {}
+
+
+# --- Echo Verification ---
+
+@api_bp.route("/verify_echo", methods=["POST"])
+def verify_echo():
+    """Verify the echo secret code.
+
+    Expects JSON body with:
+        - code: The secret code to verify.
+
+    Sets session['echo_authenticated'] = True on success.
+    """
+    data = request.get_json(silent=True)
+    if not data or not data.get("code"):
+        return jsonify({"status": "error", "message": "กรุณาระบุรหัส"}), 400
+
+    code = str(data["code"]).strip()
+    correct_code = Config.ECHO_SECRET_CODE
+
+    if not correct_code:
+        return jsonify({"status": "error", "message": "ECHO_SECRET_CODE not configured"}), 500
+
+    if code != correct_code:
+        return jsonify({"status": "error", "message": "รหัสไม่ถูกต้อง"}), 401
+
+    session["echo_authenticated"] = True
+    return jsonify({"status": "success", "message": "ยืนยันรหัสสำเร็จ"})
 
 
 # --- Sync Endpoints ---
