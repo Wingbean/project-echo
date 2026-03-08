@@ -40,7 +40,22 @@ def create_app():
     # Start scheduler if enabled
     _start_scheduler(app)
 
+    # Register cache busting
+    _register_cache_busting(app)
+
     return app
+
+def _register_cache_busting(app):
+    """Automatically bust cache for static files based on mtime."""
+    
+    @app.url_defaults
+    def hashed_static_file(endpoint, values):
+        if endpoint == 'static' and 'filename' in values:
+            filepath = os.path.join(app.static_folder, values['filename'])
+            if os.path.isfile(filepath):
+                # Use file modification time as the version hash
+                mtime = os.path.getmtime(filepath)
+                values['v'] = int(mtime)
 
 
 def _register_template_filters(app):

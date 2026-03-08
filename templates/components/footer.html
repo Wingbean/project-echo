@@ -1,11 +1,15 @@
 {# templates/components/footer.html - Page Footer #}
 <footer class="footer">
-    <div class="footer-content">
-        <p class="footer-text">
-            &copy; 2025 Project Echo — ระบบจัดการข้อมูล
-        </p>
-        <p class="footer-sync">
-            อัปเดตล่าสุด: {{ last_sync }}
-        </p>
-    </div>
+  <div class="footer-content">
+    <p class="footer-text">
+      &copy; 2025 Project Echo — ระบบจัดการข้อมูล
+      <span
+        id="secretEchoBtn"
+        style="cursor: pointer; opacity: 0.1; user-select: none"
+        title="Secret Dashboard"
+        >🐱</span
+      >
+    </p>
+    <p class="footer-sync">อัปเดตล่าสุด: {{ last_sync }}</p>
+  </div>
 </footer>

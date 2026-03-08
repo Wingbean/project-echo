@@ -1,0 +1,177 @@
+{% extends "base.html" %} {% block title %}Secret Integrated Dashboard - Project
+Echo{% endblock %} {% block extra_css %}
+<meta name="csrf-token" content="{{ csrf_token() }}" />
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/components/form.css') }}"
+/>
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/pages/emr.css') }}"
+/>
+<style>
+  /* Extra styling for echoing multiple sections */
+  .echo-section-container {
+    margin-bottom: var(--spacing-xl);
+  }
+</style>
+{% endblock %} {% block content %}
+<section
+  class="page-section theme-indigo"
+  style="margin-bottom: var(--spacing-2xl)"
+>
+  <div class="section-card">
+    <div class="section-header">
+      <h2 class="section-title">
+        <span class="material-symbols-rounded">category</span>
+        Integrated Patient Dashboard (Echo)
+      </h2>
+    </div>
+    <div class="section-body">
+      {% from 'components/search_form.html' import render_search_form %} {{
+      render_search_form('echoSearchForm', 'กรอกเลข HN...',
+      'ค้นหาข้อมูลแบบรวมศูนย์') }}
+    </div>
+  </div>
+</section>
+
+<!-- Aggregated Results Sections -->
+<div id="echoResultsContainer" style="display: none">
+  <!-- Consult -->
+  <section
+    class="page-section theme-purple echo-section-container"
+    id="echoConsultSection"
+  >
+    <div class="section-card">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span class="material-symbols-rounded">forum</span>
+          Consult (ใบตึก)
+        </h2>
+        <div class="results-meta">
+          <span class="badge" id="echoConsultCount">0 รายการ</span>
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="table-responsive" id="echoConsultTable"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Flow OPD -->
+  <section
+    class="page-section theme-teal echo-section-container"
+    id="echoFlowOpdSection"
+  >
+    <div class="section-card">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span class="material-symbols-rounded">route</span>
+          OPD Flow
+        </h2>
+        <div class="results-meta">
+          <span class="badge" id="echoFlowOpdCount">0 รายการ</span>
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="table-responsive" id="echoFlowOpdTable"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- eGFR -->
+  <section
+    class="page-section theme-amber echo-section-container"
+    id="echoEgfrSection"
+  >
+    <div class="section-card">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span class="material-symbols-rounded">kidney</span>
+          eGFR
+        </h2>
+        <div class="results-meta">
+          <span class="badge" id="echoEgfrCount">0 รายการ</span>
+        </div>
+      </div>
+      <div class="section-body">
+        <div
+          class="chart-container"
+          style="
+            position: relative;
+            height: 300px;
+            width: 100%;
+            margin-bottom: 2rem;
+            display: none;
+          "
+          id="echoEgfrChartContainer"
+        >
+          <canvas id="echoEgfrChart"></canvas>
+        </div>
+        <div class="table-responsive" id="echoEgfrTable"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HbA1c -->
+  <section
+    class="page-section theme-rose echo-section-container"
+    id="echoA1cSection"
+  >
+    <div class="section-card">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span class="material-symbols-rounded">water_drop</span>
+          HbA1c
+        </h2>
+        <div class="results-meta">
+          <span class="badge" id="echoA1cCount">0 รายการ</span>
+        </div>
+      </div>
+      <div class="section-body">
+        <div
+          class="chart-container"
+          style="
+            position: relative;
+            height: 300px;
+            width: 100%;
+            margin-bottom: 2rem;
+            display: none;
+          "
+          id="echoA1cChartContainer"
+        >
+          <canvas id="echoA1cChart"></canvas>
+        </div>
+        <div class="table-responsive" id="echoA1cTable"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- EMR -->
+  <section
+    class="page-section theme-teal echo-section-container"
+    id="echoEmrSection"
+  >
+    <div class="section-card">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span class="material-symbols-rounded">recent_patient</span>
+          EMR (Hx, PE, Dx, OP)
+        </h2>
+        <div class="results-meta">
+          <span class="badge" id="echoEmrCount"></span>
+        </div>
+      </div>
+      <div
+        class="section-body"
+        id="echoEmrCards"
+        style="background: transparent; border: none; padding: 0"
+      ></div>
+    </div>
+  </section>
+</div>
+{% endblock %} {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<script src="{{ url_for('static', filename='js/pages/echo.js') }}"></script>
+{% endblock %}

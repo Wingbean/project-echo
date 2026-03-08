@@ -39,3 +39,9 @@ def a1c_page():
 def emr_page():
     """EMR (Electronic Medical Record) search page."""
     return render_template("pages/emr.html")
+
+
+@views_bp.route("/echo")
+def echo_page():
+    """Secret integrated dashboard page."""
+    return render_template("pages/echo.html")
