@@ -4,29 +4,10 @@
   rel="stylesheet"
   href="{{ url_for('static', filename='css/components/form.css') }}"
 />
-<style>
-  /* Custom styling for OPD Flow to differentiate it from Consult */
-  .page-section .section-header .material-symbols-rounded {
-    color: var(--teal-500, #14b8a6);
-  }
-  .btn-primary {
-    background-color: var(--teal-600, #0d9488);
-  }
-  .btn-primary:hover {
-    background-color: var(--teal-700, #0f766e);
-  }
-  .badge {
-    background-color: var(--teal-100, #ccfbf1);
-    color: var(--teal-800, #115e59);
-  }
-  .table-responsive th {
-    background-color: var(--teal-50, #f0fdfa);
-    color: var(--teal-900, #134e4a);
-    border-bottom-color: var(--teal-200, #99f6e4);
-  }
-</style>
-{% endblock %} {% block content %}
-<section class="page-section">
+
+{% endblock %} {% block content %} {% from 'components/search_form.html' import
+render_search_form %}
+<section class="page-section theme-teal">
   <div class="section-card">
     <div class="section-header">
       <h2 class="section-title">
@@ -35,40 +16,9 @@
       </h2>
     </div>
     <div class="section-body">
-      <form id="flowOpdForm" class="query-form">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-
-        <div class="form-group">
-          <label for="hnInput" class="form-label">Hospital Number (HN):</label>
-          <div class="hn-input-wrapper">
-            <input
-              type="text"
-              id="hnInput"
-              name="hn"
-              class="form-input"
-              placeholder="กรอกหมายเลข HN เช่น 0083193"
-              pattern="[0-9]+"
-              inputmode="numeric"
-              autocomplete="off"
-              required
-            />
-          </div>
-          <span class="form-hint"
-            >กรอกเลข HN ของผู้ป่วยเพื่อค้นหาเส้นทางการรับบริการเฉพาะวันนี้</span
-          >
-        </div>
-
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary" id="submitBtn">
-            <span class="material-symbols-rounded">search</span>
-            ค้นหาข้อมูล Flow รพ.
-          </button>
-          <button type="reset" class="btn btn-outline" id="resetBtn">
-            <span class="material-symbols-rounded">restart_alt</span>
-            ล้าง
-          </button>
-        </div>
-      </form>
+      {{ render_search_form('flowOpdForm', 'กรอกเลข HN
+      ของผู้ป่วยเพื่อค้นหาเส้นทางการรับบริการเฉพาะวันนี้', 'ค้นหาข้อมูล Flow
+      รพ.') }}
     </div>
   </div>
 
@@ -90,16 +40,5 @@
   </div>
 </section>
 {% endblock %} {% block extra_js %}
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    EchoUtils.setupHnSearch({
-      formId: "flowOpdForm",
-      apiUrl: "/api/flow_opd",
-      loadingMessage: "กำลังค้นหาข้อมูล OPD Flow ของ HN",
-      noDataMessage: "ไม่พบข้อมูล OPD Flow วันนี้สำหรับ HN",
-      submitButtonHtml:
-        '<span class="material-symbols-rounded">search</span> ค้นหาข้อมูล Flow รพ.',
-    });
-  });
-</script>
+<script src="{{ url_for('static', filename='js/pages/flow_opd.js') }}"></script>
 {% endblock %}

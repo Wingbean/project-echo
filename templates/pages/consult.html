@@ -4,7 +4,8 @@
   rel="stylesheet"
   href="{{ url_for('static', filename='css/components/form.css') }}"
 />
-{% endblock %} {% block content %}
+{% endblock %} {% block content %} {% from 'components/search_form.html' import
+render_search_form %}
 <section class="page-section">
   <div class="section-card">
     <div class="section-header">
@@ -14,40 +15,8 @@
       </h2>
     </div>
     <div class="section-body">
-      <form id="consultForm" class="query-form">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-
-        <div class="form-group">
-          <label for="hnInput" class="form-label">Hospital Number (HN):</label>
-          <div class="hn-input-wrapper">
-            <input
-              type="text"
-              id="hnInput"
-              name="hn"
-              class="form-input"
-              placeholder="กรอกหมายเลข HN เช่น 0083193"
-              pattern="[0-9]+"
-              inputmode="numeric"
-              autocomplete="off"
-              required
-            />
-          </div>
-          <span class="form-hint"
-            >กรอกเลข HN ของผู้ป่วยเพื่อค้นหาข้อมูลการ Consult</span
-          >
-        </div>
-
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary" id="submitBtn">
-            <span class="material-symbols-rounded">search</span>
-            ค้นหา
-          </button>
-          <button type="reset" class="btn btn-outline" id="resetBtn">
-            <span class="material-symbols-rounded">restart_alt</span>
-            ล้าง
-          </button>
-        </div>
-      </form>
+      {{ render_search_form('consultForm', 'กรอกเลข HN
+      ของผู้ป่วยเพื่อค้นหาข้อมูลการ Consult', 'ค้นหา') }}
     </div>
   </div>
 
@@ -69,16 +38,5 @@
   </div>
 </section>
 {% endblock %} {% block extra_js %}
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    EchoUtils.setupHnSearch({
-      formId: "consultForm",
-      apiUrl: "/api/consult",
-      loadingMessage: "กำลังค้นหาข้อมูล Consult ของ HN",
-      noDataMessage: "ไม่พบข้อมูลการ Consult สำหรับ HN",
-      submitButtonHtml:
-        '<span class="material-symbols-rounded">search</span> ค้นหา',
-    });
-  });
-</script>
+<script src="{{ url_for('static', filename='js/pages/consult.js') }}"></script>
 {% endblock %}

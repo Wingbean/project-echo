@@ -1,0 +1,69 @@
+/* Theme Modifiers */
+.theme-rose .section-header .material-symbols-rounded {
+  color: #f43f5e;
+}
+.theme-rose .btn-primary {
+  background-color: #e11d48;
+  color: white;
+  border-color: #e11d48;
+}
+.theme-rose .btn-primary:hover {
+  background-color: #be123c;
+  color: white;
+  border-color: #be123c;
+}
+.theme-rose .badge {
+  background-color: #ffe4e6;
+  color: #9f1239;
+}
+.theme-rose .table-responsive th {
+  background-color: #fff1f2;
+  color: #881337;
+  border-bottom-color: #fecdd3;
+}
+
+.theme-amber .section-header .material-symbols-rounded {
+  color: #f59e0b;
+}
+.theme-amber .btn-primary {
+  background-color: #d97706;
+  color: white;
+  border-color: #d97706;
+}
+.theme-amber .btn-primary:hover {
+  background-color: #b45309;
+  color: white;
+  border-color: #b45309;
+}
+.theme-amber .badge {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+.theme-amber .table-responsive th {
+  background-color: #fffbeb;
+  color: #78350f;
+  border-bottom-color: #fde68a;
+}
+
+.theme-teal .section-header .material-symbols-rounded {
+  color: #14b8a6;
+}
+.theme-teal .btn-primary {
+  background-color: #0d9488;
+  color: white;
+  border-color: #0d9488;
+}
+.theme-teal .btn-primary:hover {
+  background-color: #0f766e;
+  color: white;
+  border-color: #0f766e;
+}
+.theme-teal .badge {
+  background-color: #ccfbf1;
+  color: #115e59;
+}
+.theme-teal .table-responsive th {
+  background-color: #f0fdfa;
+  color: #134e4a;
+  border-bottom-color: #99f6e4;
+}

@@ -1,5 +1,10 @@
 {% extends "base.html" %} {% block title %}หน้าหลัก - Project Echo{% endblock %}
-{% block content %}
+{% block extra_css %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/pages/dashboard.css') }}"
+/>
+{% endblock %} {% block content %}
 <section class="hero-section">
   <div class="hero-content">
     <h1 class="hero-title">
@@ -11,7 +16,6 @@
 </section>
 
 <section class="dashboard-grid">
-  {# Services & Features #}
   <div class="section-card">
     <div class="section-header">
       <h2 class="section-title">
@@ -20,195 +24,68 @@
       </h2>
     </div>
     <div class="section-body">
-      <div
-        class="action-grid"
-        style="
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-          gap: 1rem;
-        "
-      >
+      <div class="action-grid">
         <a
           href="{{ url_for('views.consult_page') }}"
-          class="action-card"
-          style="
-            border-left: 4px solid var(--primary-500);
-            padding: 1.5rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            background: var(--surface-light);
-            border-radius: 8px;
-            text-decoration: none;
-            color: inherit;
-            transition:
-              transform 0.2s,
-              box-shadow 0.2s;
-          "
+          class="action-card theme-consult"
         >
-          <div style="display: flex; align-items: center; gap: 0.5rem">
-            <span
-              class="material-symbols-rounded"
-              style="color: var(--primary-500)"
-              >forum</span
-            >
-            <h3 style="margin: 0; font-size: 1.1rem">Consult</h3>
+          <div class="action-card-header">
+            <span class="material-symbols-rounded">forum</span>
+            <h3 class="action-card-title">Consult</h3>
           </div>
-          <p style="margin: 0; font-size: 0.9rem; color: var(--text-light)">
+          <p class="action-card-desc">
             ระบบค้นหาข้อมูลการปรึกษาแพทย์ระหว่างแผนก
           </p>
         </a>
 
         <a
           href="{{ url_for('views.flow_opd_page') }}"
-          class="action-card"
-          style="
-            border-left: 4px solid var(--indigo-500, #6366f1);
-            padding: 1.5rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            background: var(--surface-light);
-            border-radius: 8px;
-            text-decoration: none;
-            color: inherit;
-            transition:
-              transform 0.2s,
-              box-shadow 0.2s;
-          "
+          class="action-card theme-opd"
         >
-          <div style="display: flex; align-items: center; gap: 0.5rem">
-            <span
-              class="material-symbols-rounded"
-              style="color: var(--indigo-500, #6366f1)"
-              >route</span
-            >
-            <h3 style="margin: 0; font-size: 1.1rem">OPD Flow</h3>
+          <div class="action-card-header">
+            <span class="material-symbols-rounded">route</span>
+            <h3 class="action-card-title">OPD Flow</h3>
           </div>
-          <p style="margin: 0; font-size: 0.9rem; color: var(--text-light)">
-            ระบบตรวจสอบและติดตามเส้นทางผู้ป่วยนอก
-          </p>
+          <p class="action-card-desc">ระบบตรวจสอบและติดตามเส้นทางผู้ป่วยนอก</p>
         </a>
 
         <a
           href="{{ url_for('views.egfr_page') }}"
-          class="action-card"
-          style="
-            border-left: 4px solid var(--amber-500, #f59e0b);
-            padding: 1.5rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            background: var(--surface-light);
-            border-radius: 8px;
-            text-decoration: none;
-            color: inherit;
-            transition:
-              transform 0.2s,
-              box-shadow 0.2s;
-          "
+          class="action-card theme-egfr"
         >
-          <div style="display: flex; align-items: center; gap: 0.5rem">
-            <span
-              class="material-symbols-rounded"
-              style="color: var(--amber-500, #f59e0b)"
-              >kidney</span
-            >
-            <h3 style="margin: 0; font-size: 1.1rem">eGFR</h3>
+          <div class="action-card-header">
+            <span class="material-symbols-rounded">kidney</span>
+            <h3 class="action-card-title">eGFR</h3>
           </div>
-          <p style="margin: 0; font-size: 0.9rem; color: var(--text-light)">
+          <p class="action-card-desc">
             ค้นหาแนวโน้มค่าอัตราการกรองของไตย้อนหลัง
           </p>
         </a>
 
-        <a
-          href="{{ url_for('views.a1c_page') }}"
-          class="action-card"
-          style="
-            border-left: 4px solid var(--rose-500, #f43f5e);
-            padding: 1.5rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            background: var(--surface-light);
-            border-radius: 8px;
-            text-decoration: none;
-            color: inherit;
-            transition:
-              transform 0.2s,
-              box-shadow 0.2s;
-          "
-        >
-          <div style="display: flex; align-items: center; gap: 0.5rem">
-            <span
-              class="material-symbols-rounded"
-              style="color: var(--rose-500, #f43f5e)"
-              >water_drop</span
-            >
-            <h3 style="margin: 0; font-size: 1.1rem">HbA1c</h3>
+        <a href="{{ url_for('views.a1c_page') }}" class="action-card theme-a1c">
+          <div class="action-card-header">
+            <span class="material-symbols-rounded">water_drop</span>
+            <h3 class="action-card-title">HbA1c</h3>
           </div>
-          <p style="margin: 0; font-size: 0.9rem; color: var(--text-light)">
-            ตรวจสอบระดับน้ำตาลเฉลี่ยสะสมในเลือด
-          </p>
+          <p class="action-card-desc">ตรวจสอบระดับน้ำตาลเฉลี่ยสะสมในเลือด</p>
         </a>
 
-        <a
-          href="#"
-          class="action-card"
-          style="
-            border-left: 4px solid var(--emerald-500, #10b981);
-            padding: 1.5rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            background: var(--surface-light);
-            border-radius: 8px;
-            text-decoration: none;
-            color: inherit;
-            transition:
-              transform 0.2s,
-              box-shadow 0.2s;
-          "
-        >
-          <div style="display: flex; align-items: center; gap: 0.5rem">
-            <span
-              class="material-symbols-rounded"
-              style="color: var(--emerald-500, #10b981)"
-              >monitor_heart</span
-            >
-            <h3 style="margin: 0; font-size: 1.1rem">NCD Clinic</h3>
+        <a href="#" class="action-card theme-ncd">
+          <div class="action-card-header">
+            <span class="material-symbols-rounded">monitor_heart</span>
+            <h3 class="action-card-title">NCD Clinic</h3>
           </div>
-          <p style="margin: 0; font-size: 0.9rem; color: var(--text-light)">
+          <p class="action-card-desc">
             ระบบค้นหารายชื่อผู้ป่วยและผลแล็บคลินิกโรคเรื้อรัง
           </p>
         </a>
-        <a
-          href="{{ url_for('views.emr_page') }}"
-          class="action-card"
-          style="
-            border-left: 4px solid var(--teal-500, #14b8a6);
-            padding: 1.5rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            background: var(--surface-light);
-            border-radius: 8px;
-            text-decoration: none;
-            color: inherit;
-            transition:
-              transform 0.2s,
-              box-shadow 0.2s;
-          "
-        >
-          <div style="display: flex; align-items: center; gap: 0.5rem">
-            <span
-              class="material-symbols-rounded"
-              style="color: var(--teal-500, #14b8a6)"
-              >recent_patient</span
-            >
-            <h3 style="margin: 0; font-size: 1.1rem">EMR</h3>
+
+        <a href="{{ url_for('views.emr_page') }}" class="action-card theme-emr">
+          <div class="action-card-header">
+            <span class="material-symbols-rounded">recent_patient</span>
+            <h3 class="action-card-title">EMR</h3>
           </div>
-          <p style="margin: 0; font-size: 0.9rem; color: var(--text-light)">
+          <p class="action-card-desc">
             ระบบดึงข้อมูลประวัติการรักษาผู้ป่วยนอก (Hx, PE, Dx, OP)
           </p>
         </a>
@@ -216,8 +93,4 @@
     </div>
   </div>
 </section>
-{% endblock %} {% block extra_js %}
-<script>
-  // Dashboard functionality removed per user request
-</script>
 {% endblock %}
