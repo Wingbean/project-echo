@@ -30,12 +30,13 @@ document.addEventListener("DOMContentLoaded", () => {
                             <div class="emr-field"><div class="emr-label">AN</div><div class="emr-value">${val("AN")}</div></div>
                         </div>
                         <div class="emr-row">
-                            <div class="emr-field"><div class="emr-label">VstDate</div><div class="emr-value">${val("VstDate")}</div></div>
-                            <div class="emr-field"><div class="emr-label">VstTime</div><div class="emr-value">${val("VstTime")}</div></div>
-                            <div class="emr-field"><div class="emr-label">Rights</div><div class="emr-value">${val("Rights")}</div></div>
+                            <div class="emr-field"><div class="emr-label">วันที่</div><div class="emr-value" style="white-space: nowrap;">${val("VstDate")}</div></div>
+                            <div class="emr-field"><div class="emr-label">เวลา</div><div class="emr-value" style="white-space: nowrap;">${val("VstTime")}</div></div>
+                            <div class="emr-field"><div class="emr-label">อายุ</div><div class="emr-value">${val("Age")}</div></div>
+                            <div class="emr-field" style="max-width: 100px;"><div class="emr-label">สิทธิ์</div><div class="emr-value">${val("Rights")}</div></div>
                         </div>
                         <div class="emr-row gap-large">
-                            <div class="emr-field"><div class="emr-label">Dept</div><div class="emr-value">${val("Dept")}</div></div>
+                            <div class="emr-field"><div class="emr-label">แผนก</div><div class="emr-value">${val("Dept")}</div></div>
                             <div class="emr-field"><div class="emr-label" style="width: 75px;">HxTaker</div><div class="emr-value">${val("HxTaker")}</div></div>
                             <div class="emr-field"><div class="emr-label" style="width: 40px;">Dr</div><div class="emr-value">${val("Dr")}</div></div>
                         </div>
