@@ -621,3 +621,55 @@ def test_db():
         })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+# --- Barcode Trigger Endpoint ---
+
+_BARCODE_CACHE_FILE = os.path.join(Config.INSTANCE_DIR, "barcode_cache.json")
+
+@api_bp.route("/barcode-trigger", methods=["POST"])
+@csrf.exempt
+def barcode_trigger():
+    """Receive HN from background barcode scanner program."""
+    data = request.get_json(silent=True)
+    
+    # Also support form data if the client doesn't send JSON
+    if not data and request.form:
+        data = request.form.to_dict()
+        
+    if not data or not data.get("hn"):
+        return jsonify({"status": "error", "message": "กรุณาระบุ HN"}), 400
+
+    hn = str(data["hn"]).strip()
+    
+    # Remove any non-digit characters if needed, or just pad zeros if it's purely digits
+    if re.match(r"^\d+$", hn):
+        hn = hn.zfill(7)
+        
+    try:
+        os.makedirs(Config.INSTANCE_DIR, exist_ok=True)
+        cache_data = {
+            "hn": hn,
+            "timestamp": time.time()
+        }
+        with open(_BARCODE_CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(cache_data, f)
+            
+        return jsonify({"status": "success", "message": f"Received HN {hn}", "timestamp": cache_data["timestamp"]})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@api_bp.route("/last-scanned", methods=["GET"])
+@csrf.exempt
+def get_last_scanned():
+    """Get the last scanned HN."""
+    if not os.path.exists(_BARCODE_CACHE_FILE):
+        return jsonify({"status": "success", "hn": None, "timestamp": 0})
+        
+    try:
+        with open(_BARCODE_CACHE_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return jsonify({"status": "success", "hn": data.get("hn"), "timestamp": data.get("timestamp", 0)})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500

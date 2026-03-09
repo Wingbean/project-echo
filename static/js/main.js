@@ -77,3 +77,52 @@ function initAlertDismiss() {
     });
   });
 }
+
+/* --- Barcode Scanner Integration --- */
+function initBarcodeScanner() {
+  const hnInput = document.getElementById("hnInput");
+  if (!hnInput) return; // Only run on pages with an hn input
+
+  let lastTimestamp = 0;
+
+  setInterval(async () => {
+    try {
+      const response = await fetch("/api/last-scanned");
+      if (response.ok) {
+        const data = await response.json();
+        if (data.status === "success" && data.hn) {
+          // If this is a new scan based on timestamp
+          if (lastTimestamp === 0 && data.timestamp > 0) {
+            lastTimestamp = data.timestamp; // Initialize without triggering
+          } else if (data.timestamp > lastTimestamp) {
+            lastTimestamp = data.timestamp;
+            hnInput.value = data.hn;
+            
+            // Try to find the search form and submit it, or a search button and click it
+            const searchForm = hnInput.closest('form');
+            if (searchForm) {
+              const submitBtn = searchForm.querySelector('button[type="submit"]') || document.getElementById('submitBtn');
+              if (submitBtn) {
+                submitBtn.click();
+              } else {
+                searchForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+              }
+            } else {
+              const submitBtn = document.getElementById('submitBtn');
+              if (submitBtn) {
+                submitBtn.click();
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      // Silently ignore network errors
+    }
+  }, 1000); // Check every second
+}
+
+// Ensure initBarcodeScanner is called on DOMContentLoaded
+document.addEventListener("DOMContentLoaded", () => {
+  initBarcodeScanner();
+});
