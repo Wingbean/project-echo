@@ -12,6 +12,6 @@ FROM opitemrece opi
 LEFT JOIN drugusage du ON opi.drugusage = du.drugusage AND du.status = 'Y'
 LEFT JOIN drugitems di ON opi.icode = di.icode 
 WHERE 
-    opi.drugusage <> '' AND
+    -- opi.drugusage <> '' AND
     opi.hn = %(hn)s
 ORDER BY opi.vn DESC, opi.rxdate DESC, opi.rxtime DESC;
