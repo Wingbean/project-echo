@@ -4,7 +4,7 @@ SELECT
     opi.rxdate AS 'rxdate',
     opi.rxtime AS 'rx_time',
     opi.icode AS 'icode',
-    di.name AS 'dName',
+    CONCAT(di.name, ' ', '[', di.strength, ']') AS 'dName',
     opi.drugusage AS 'usage',
     du.shortlist AS 'use',
     opi.qty AS 'qty'
