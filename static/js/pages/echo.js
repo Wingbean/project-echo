@@ -30,7 +30,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // Clear all tables
     [
       "echoConsultTable",
-      "echoFlowOpdTable",
       "echoEgfrTable",
       "echoA1cTable",
       "echoEmrCards",
@@ -42,7 +41,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // Reset badges
     [
       "echoConsultCount",
-      "echoFlowOpdCount",
       "echoEgfrCount",
       "echoA1cCount",
       "echoEmrCount",
@@ -181,17 +179,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const csrfToken = EchoAPI.getCSRFToken();
 
       // Perform parallel fetch
-      const [consultRes, opdFlowRes, egfrRes, a1cRes, emrRes] =
+      const [consultRes, egfrRes, a1cRes, emrRes] =
         await Promise.allSettled([
           fetch("/api/consult", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-CSRFToken": csrfToken,
-            },
-            body: JSON.stringify({ hn }),
-          }).then((r) => r.json()),
-          fetch("/api/flow_opd", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -248,26 +238,6 @@ document.addEventListener("DOMContentLoaded", () => {
             '<div class="no-data">ไม่พบประวัติ Consult</div>';
       }
 
-      // 2. OPD Flow
-      if (
-        opdFlowRes.status === "fulfilled" &&
-        opdFlowRes.value.status === "success"
-      ) {
-        const records = opdFlowRes.value.records || [];
-        records.forEach((r) =>
-          Object.keys(r).forEach((k) => {
-            if (typeof r[k] === "string") r[k] = EchoUtils.formatThaiDate(r[k]);
-          }),
-        );
-        document.getElementById("echoFlowOpdCount").textContent =
-          `${records.length} รายการ`;
-        if (records.length > 0)
-          document.getElementById("echoFlowOpdTable").innerHTML =
-            EchoUtils.buildTable(opdFlowRes.value.columns, records);
-        else
-          document.getElementById("echoFlowOpdTable").innerHTML =
-            '<div class="no-data">ไม่พบประวัติ OPD Flow ในวันนี้</div>';
-      }
 
       // 3. eGFR
       if (

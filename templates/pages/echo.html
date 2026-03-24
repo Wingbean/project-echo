@@ -62,6 +62,78 @@ Echo{% endblock %} {% block extra_css %}
 
 <!-- Aggregated Results Sections -->
 <div id="echoResultsContainer" style="display: none">
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; margin-bottom: var(--spacing-xl);">
+    <!-- eGFR -->
+    <section
+      class="page-section theme-amber echo-section-container"
+      id="echoEgfrSection"
+      style="margin-bottom: 0;"
+    >
+      <div class="section-card" style="height: 100%;">
+        <div class="section-header">
+          <h2 class="section-title">
+            <span class="material-symbols-rounded">kidney</span>
+            eGFR
+          </h2>
+          <div class="results-meta">
+            <span class="badge" id="echoEgfrCount">0 รายการ</span>
+          </div>
+        </div>
+        <div class="section-body">
+          <div
+            class="chart-container"
+            style="
+              position: relative;
+              height: 300px;
+              width: 100%;
+              margin-bottom: 2rem;
+              display: none;
+            "
+            id="echoEgfrChartContainer"
+          >
+            <canvas id="echoEgfrChart"></canvas>
+          </div>
+          <div class="table-responsive" id="echoEgfrTable"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HbA1c -->
+    <section
+      class="page-section theme-rose echo-section-container"
+      id="echoA1cSection"
+      style="margin-bottom: 0;"
+    >
+      <div class="section-card" style="height: 100%;">
+        <div class="section-header">
+          <h2 class="section-title">
+            <span class="material-symbols-rounded">water_drop</span>
+            HbA1c
+          </h2>
+          <div class="results-meta">
+            <span class="badge" id="echoA1cCount">0 รายการ</span>
+          </div>
+        </div>
+        <div class="section-body">
+          <div
+            class="chart-container"
+            style="
+              position: relative;
+              height: 300px;
+              width: 100%;
+              margin-bottom: 2rem;
+              display: none;
+            "
+            id="echoA1cChartContainer"
+          >
+            <canvas id="echoA1cChart"></canvas>
+          </div>
+          <div class="table-responsive" id="echoA1cTable"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
   <!-- Consult -->
   <section
     class="page-section theme-purple echo-section-container"
@@ -79,95 +151,6 @@ Echo{% endblock %} {% block extra_css %}
       </div>
       <div class="section-body">
         <div class="table-responsive" id="echoConsultTable"></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Flow OPD -->
-  <section
-    class="page-section theme-teal echo-section-container"
-    id="echoFlowOpdSection"
-  >
-    <div class="section-card">
-      <div class="section-header">
-        <h2 class="section-title">
-          <span class="material-symbols-rounded">route</span>
-          OPD Flow
-        </h2>
-        <div class="results-meta">
-          <span class="badge" id="echoFlowOpdCount">0 รายการ</span>
-        </div>
-      </div>
-      <div class="section-body">
-        <div class="table-responsive" id="echoFlowOpdTable"></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- eGFR -->
-  <section
-    class="page-section theme-amber echo-section-container"
-    id="echoEgfrSection"
-  >
-    <div class="section-card">
-      <div class="section-header">
-        <h2 class="section-title">
-          <span class="material-symbols-rounded">kidney</span>
-          eGFR
-        </h2>
-        <div class="results-meta">
-          <span class="badge" id="echoEgfrCount">0 รายการ</span>
-        </div>
-      </div>
-      <div class="section-body">
-        <div
-          class="chart-container"
-          style="
-            position: relative;
-            height: 300px;
-            width: 100%;
-            margin-bottom: 2rem;
-            display: none;
-          "
-          id="echoEgfrChartContainer"
-        >
-          <canvas id="echoEgfrChart"></canvas>
-        </div>
-        <div class="table-responsive" id="echoEgfrTable"></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- HbA1c -->
-  <section
-    class="page-section theme-rose echo-section-container"
-    id="echoA1cSection"
-  >
-    <div class="section-card">
-      <div class="section-header">
-        <h2 class="section-title">
-          <span class="material-symbols-rounded">water_drop</span>
-          HbA1c
-        </h2>
-        <div class="results-meta">
-          <span class="badge" id="echoA1cCount">0 รายการ</span>
-        </div>
-      </div>
-      <div class="section-body">
-        <div
-          class="chart-container"
-          style="
-            position: relative;
-            height: 300px;
-            width: 100%;
-            margin-bottom: 2rem;
-            display: none;
-          "
-          id="echoA1cChartContainer"
-        >
-          <canvas id="echoA1cChart"></canvas>
-        </div>
-        <div class="table-responsive" id="echoA1cTable"></div>
       </div>
     </div>
   </section>
