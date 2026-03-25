@@ -11,6 +11,58 @@ document.addEventListener("DOMContentLoaded", () => {
     chartContainer.style.display = "none";
   }
 
+  const consultSection = document.getElementById("consultResultsSection");
+  const consultTable = document.getElementById("consultResultsTable");
+  const consultCount = document.getElementById("consultResultCount");
+  const consultBadge = document.getElementById("consultHnBadge");
+
+  function resetConsult() {
+    if (consultSection) {
+      consultSection.style.display = "none";
+      consultTable.innerHTML = "";
+      consultCount.textContent = "0 รายการ";
+      consultBadge.textContent = "";
+    }
+  }
+
+  async function fetchConsultData(hn) {
+    if (!consultSection) return;
+    consultSection.style.display = "block";
+    consultTable.innerHTML = `<div class="loading-placeholder"><span class="material-symbols-rounded spin">progress_activity</span><span>กำลังค้นหาข้อมูล Consult ของ HN ${EchoUtils.escapeHtml(hn)}...</span></div>`;
+    
+    try {
+      const data = await EchoAPI.post("/api/consult", { hn: hn });
+      if (data.status === "error") {
+          consultTable.innerHTML = `<div class="empty-state error"><span class="material-symbols-rounded">error</span><p>${EchoUtils.escapeHtml(data.message)}</p></div>`;
+          return;
+      }
+      
+      const records = data.records || [];
+      const columns = data.columns || [];
+
+      // Globally convert Gregorian Dates to Thai Buddhist Era for display
+      records.forEach((record) => {
+        Object.keys(record).forEach((key) => {
+          if (typeof record[key] === "string") {
+            record[key] = EchoUtils.formatThaiDate(record[key]);
+          }
+        });
+      });
+
+      consultBadge.textContent = "HN: " + hn;
+      consultCount.textContent = records.length + " รายการ";
+
+      if (records.length === 0) {
+        consultTable.innerHTML = `<div class="empty-state"><span class="material-symbols-rounded">search_off</span><p>ไม่พบข้อมูลการ Consult สำหรับ HN ${EchoUtils.escapeHtml(hn)}</p></div>`;
+        return;
+      }
+
+      consultTable.innerHTML = EchoUtils.buildTable(columns, records, {});
+    } catch (err) {
+      consultTable.innerHTML = `<div class="empty-state error"><span class="material-symbols-rounded">error</span><p>เกิดข้อผิดพลาด: ${EchoUtils.escapeHtml(err.message)}</p></div>`;
+    }
+  }
+
   EchoUtils.setupHnSearch({
     formId: "inrForm",
     apiUrl: "/api/inr",
@@ -37,9 +89,14 @@ document.addEventListener("DOMContentLoaded", () => {
     },
     onReset: () => {
       destroyChart();
+      resetConsult();
     },
     onSuccess: (records) => {
       destroyChart();
+      const hnInput = document.getElementById("hnInput");
+      if (hnInput && hnInput.value) {
+        fetchConsultData(hnInput.value);
+      }
       if (!records || records.length === 0) return;
 
       // Ensure records are ordered chronologically for plotting (oldest to newest)

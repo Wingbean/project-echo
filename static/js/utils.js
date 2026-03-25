@@ -69,6 +69,20 @@ const EchoUtils = {
         const val = row[col];
         let tdContent =
           val !== null && val !== undefined ? this.escapeHtml(val) : "-";
+
+        if (typeof tdContent === 'string') {
+          const today = new Date();
+          const beYear = today.getFullYear() + 543;
+          const month = String(today.getMonth() + 1).padStart(2, '0');
+          const day = String(today.getDate()).padStart(2, '0');
+          const todayBE = `${beYear}-${month}-${day}`;
+          const todayGregorian = `${today.getFullYear()}-${month}-${day}`;
+
+          if (tdContent.startsWith(todayBE) || tdContent.startsWith(todayGregorian)) {
+            tdContent = `<span style="background-color: #22c55e; color: white; padding: 2px 8px; border-radius: 12px; font-weight: bold; display: inline-block;">${tdContent}</span>`;
+          }
+        }
+
         let tdAttrs = "";
 
         if (options.cellRenderers && options.cellRenderers[col]) {

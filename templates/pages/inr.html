@@ -50,6 +50,23 @@ render_search_form %}
       <div class="table-responsive" id="resultsTable"></div>
     </div>
   </div>
+
+  {# Consult Results area #}
+  <div class="section-card theme-cyan mt-4" id="consultResultsSection" style="display: none; margin-top: 1.5rem;">
+    <div class="section-header">
+      <h2 class="section-title">
+        <span class="material-symbols-rounded">forum</span>
+        ผลลัพธ์การ Consult
+      </h2>
+      <div class="results-meta">
+        <span class="badge" id="consultHnBadge"></span>
+        <span class="badge" id="consultResultCount">0 รายการ</span>
+      </div>
+    </div>
+    <div class="section-body">
+      <div class="table-responsive" id="consultResultsTable"></div>
+    </div>
+  </div>
 </section>
 {% endblock %} {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
