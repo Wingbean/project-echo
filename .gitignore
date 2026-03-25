@@ -36,3 +36,4 @@ instance/sync_status.json
 
 # Logs
 *.log
+instance/barcode_cache.json
