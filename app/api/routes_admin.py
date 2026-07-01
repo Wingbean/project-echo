@@ -16,6 +16,7 @@ def _user_dict(user: User) -> dict:
         "is_active": user.is_active,
         "can_access_echo": user.can_access_echo,
         "can_access_emr": user.can_access_emr,
+        "totp_enabled": user.totp_enabled,
         "created_at": user.created_at.isoformat() if user.created_at else None,
     }
 
@@ -67,6 +68,19 @@ def admin_delete_user(current_user, user_id):
         if user is None:
             return jsonify({"status": "error", "message": "ไม่พบผู้ใช้"}), 404
         db.delete(user)
+    return jsonify({"status": "success"})
+
+
+@api_bp.route("/admin/users/<int:user_id>/reset-2fa", methods=["POST"])
+@admin_required
+def admin_reset_2fa(current_user, user_id):
+    """Clear a user's TOTP enrollment (e.g. lost authenticator device) so they re-enroll on next login."""
+    with get_db_session() as db:
+        user = db.get(User, user_id)
+        if user is None:
+            return jsonify({"status": "error", "message": "ไม่พบผู้ใช้"}), 404
+        user.totp_enabled = False
+        user.totp_secret = None
     return jsonify({"status": "success"})
 
 

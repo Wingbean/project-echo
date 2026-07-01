@@ -26,6 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 ? `<button class="btn-deactivate">ปิดใช้งาน</button>`
                 : `<button class="btn-activate" ${u.is_verified ? "" : "disabled"}>อนุมัติ</button>`
             }
+            ${u.totp_enabled ? `<button class="btn-reset-2fa">รีเซ็ต 2FA</button>` : ""}
             <button class="btn-delete">ลบ</button>
           </td>
         </tr>`,
@@ -47,6 +48,11 @@ document.addEventListener("DOMContentLoaded", () => {
     } else if (e.target.classList.contains("btn-delete")) {
       if (confirm("ยืนยันการลบผู้ใช้นี้?")) {
         await EchoAPI.post(`/api/admin/users/${id}/delete`);
+        loadUsers();
+      }
+    } else if (e.target.classList.contains("btn-reset-2fa")) {
+      if (confirm("รีเซ็ตการยืนยันตัวตนสองชั้นของผู้ใช้นี้? ผู้ใช้จะต้องตั้งค่าใหม่ในการเข้าสู่ระบบครั้งถัดไป")) {
+        await EchoAPI.post(`/api/admin/users/${id}/reset-2fa`);
         loadUsers();
       }
     }

@@ -27,5 +27,8 @@ class User(Base):
     can_access_echo = Column(Boolean, default=False, nullable=False)
     can_access_emr = Column(Boolean, default=False, nullable=False)
 
+    totp_secret = Column(String(32), nullable=True)
+    totp_enabled = Column(Boolean, default=False, nullable=False)
+
     created_at = Column(DateTime, default=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)

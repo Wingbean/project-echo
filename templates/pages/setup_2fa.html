@@ -1,0 +1,108 @@
+{% extends "base.html" %} {% block title %}ตั้งค่า 2FA - Project Echo{% endblock
+%} {% block extra_css %}
+<style>
+  .twofa-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+  }
+
+  .twofa-card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-2xl);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+    text-align: center;
+  }
+
+  .twofa-title {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .twofa-subtitle {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .twofa-qr {
+    width: 220px;
+    height: 220px;
+    margin: 0 auto var(--spacing-lg);
+  }
+
+  .twofa-qr svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .twofa-secret {
+    font-family: monospace;
+    font-size: var(--font-size-sm);
+    background: var(--color-bg, #f4f4f4);
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-md);
+    word-break: break-all;
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .twofa-input {
+    width: 100%;
+    padding: 12px;
+    font-size: var(--font-size-lg);
+    text-align: center;
+    letter-spacing: 0.3em;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .twofa-submit {
+    width: 100%;
+    padding: 12px 24px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: var(--color-primary);
+    color: #fff;
+    font-family: var(--font-primary);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="twofa-wrapper">
+  <div class="twofa-card">
+    <h1 class="twofa-title">ตั้งค่าการยืนยันตัวตนสองชั้น</h1>
+    <p class="twofa-subtitle">
+      สแกน QR code นี้ด้วยแอป Google Authenticator แล้วกรอกรหัส 6 หลักที่ได้
+    </p>
+    <div class="twofa-qr">{{ qr_svg|safe }}</div>
+    <p class="twofa-subtitle">หรือกรอกรหัสด้วยตนเอง:</p>
+    <div class="twofa-secret">{{ secret }}</div>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <input
+        type="text"
+        name="code"
+        class="twofa-input"
+        inputmode="numeric"
+        pattern="[0-9]{6}"
+        maxlength="6"
+        autocomplete="one-time-code"
+        placeholder="000000"
+        required
+        autofocus
+      />
+      <button type="submit" class="twofa-submit">ยืนยัน</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -39,7 +39,9 @@ def create_app():
     # Create local users DB tables (idempotent — safe on every worker start)
     from app.models.local_db import get_local_engine
     from app.models.user import Base as UserBase
-    UserBase.metadata.create_all(get_local_engine())
+    engine = get_local_engine()
+    UserBase.metadata.create_all(engine)
+    _add_missing_columns(engine, UserBase)
 
     # Register blueprints
     app.register_blueprint(api_bp, url_prefix="/api")
@@ -55,6 +57,27 @@ def create_app():
     _register_cache_busting(app)
 
     return app
+
+def _add_missing_columns(engine, base):
+    """create_all() only creates missing tables, not missing columns on an
+    already-existing table — this repo has no Alembic, so add any new model
+    columns to `instance/app.db` by hand (idempotent, safe on every worker start)."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    for table in base.metadata.sorted_tables:
+        if not inspector.has_table(table.name):
+            continue
+        existing = {col["name"] for col in inspector.get_columns(table.name)}
+        for column in table.columns:
+            if column.name in existing:
+                continue
+            ddl = f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" {column.type.compile(engine.dialect)}'
+            if not column.nullable:
+                ddl += f" NOT NULL DEFAULT {'1' if column.default.arg else '0'}"
+            with engine.begin() as conn:
+                conn.execute(text(ddl))
+
 
 def _register_cache_busting(app):
     """Automatically bust cache for static files based on mtime."""

@@ -39,6 +39,11 @@ def login_required(view):
             if _is_api_request():
                 return jsonify({"status": "error", "message": "บัญชียังไม่ได้รับการอนุมัติ"}), 403
             return redirect(url_for("views.pending_approval_page"))
+        if not session.get("totp_verified"):
+            next_page = "views.setup_2fa" if not user.totp_enabled else "views.verify_2fa"
+            if _is_api_request():
+                return jsonify({"status": "error", "message": "กรุณายืนยันตัวตนสองชั้นก่อนเข้าใช้งาน"}), 401
+            return redirect(url_for(next_page))
         return view(*args, current_user=user, **kwargs)
 
     return wrapped

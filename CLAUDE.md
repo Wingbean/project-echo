@@ -55,7 +55,7 @@ Only report success if **all** of the following hold — otherwise report exactl
 - The container is running (not restarting/exited) and the exercised endpoint(s)/page(s) actually work.
 - `docker compose logs` shows no errors/tracebacks/exceptions for the relevant request.
 
-After verifying, tear down or leave running per the user's preference — don't leave stray containers around silently.
+After verifying, **leave the container running** (`docker compose up -d`, `docker image prune -f` to clean up the old/unused image from the rebuild) — do NOT `docker compose down` afterward. This is a container project: the user wants to try the change live right after you finish, so it must stay up unless they explicitly ask you to stop it.
 
 ## Architecture
 

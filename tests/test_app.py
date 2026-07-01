@@ -33,7 +33,7 @@ def client(app):
 
 
 def _make_active_user(email, can_access_echo=False, can_access_emr=False):
-    """Insert a verified+active user in the test (in-memory) DB, return its id."""
+    """Insert a verified+active, 2FA-enrolled user in the test (in-memory) DB, return its id."""
     with get_db_session() as db:
         user = User(
             email=email,
@@ -42,10 +42,19 @@ def _make_active_user(email, can_access_echo=False, can_access_emr=False):
             is_active=True,
             can_access_echo=can_access_echo,
             can_access_emr=can_access_emr,
+            totp_enabled=True,
+            totp_secret="JBSWY3DPEHPK3PXP",
         )
         db.add(user)
         db.flush()
         return user.id
+
+
+def _login_session(client, user_id):
+    """Set the session as if the user finished Google login + TOTP verification."""
+    with client.session_transaction() as s:
+        s["user_id"] = user_id
+        s["totp_verified"] = True
 
 
 class TestRoutes:
@@ -54,8 +63,7 @@ class TestRoutes:
 
     def test_index_page_logged_in(self, client):
         user_id = _make_active_user("home-user@example.com")
-        with client.session_transaction() as s:
-            s["user_id"] = user_id
+        _login_session(client, user_id)
         assert client.get("/").status_code == 200
 
     def test_egfr_page_requires_login(self, client):
@@ -72,8 +80,7 @@ class TestRoutes:
 
     def test_hn_search_rejects_non_digit(self, client):
         user_id = _make_active_user("hn-user@example.com")
-        with client.session_transaction() as s:
-            s["user_id"] = user_id
+        _login_session(client, user_id)
         resp = client.post("/api/egfr", json={"hn": "abc"})
         assert resp.status_code == 400
 
@@ -85,8 +92,7 @@ _EXEC = "app.api.routes_search.execute_sql_on_hosxp"
 class TestPerHNEndpoints:
     def _login(self, client, email):
         user_id = _make_active_user(email)
-        with client.session_transaction() as s:
-            s["user_id"] = user_id
+        _login_session(client, user_id)
 
     def test_egfr_success_and_zfill(self, client):
         self._login(client, "egfr-success-user@example.com")
@@ -127,8 +133,7 @@ class TestPerHNEndpoints:
         ])
         dfs = {"emr_hx_pe_dx_op.sql": main, "emr_rx.sql": rx}
         user_id = _make_active_user("echo-user@example.com", can_access_echo=True)
-        with client.session_transaction() as s:
-            s["user_id"] = user_id
+        _login_session(client, user_id)
         with patch(_EXEC, side_effect=lambda f, params=None: dfs[f]):
             resp = client.post("/api/emr", json={"hn": "123"})
         assert resp.status_code == 200
@@ -139,11 +144,92 @@ class TestPerHNEndpoints:
 
     def test_emr_allows_emr_session(self, client):
         user_id = _make_active_user("emr-user@example.com", can_access_emr=True)
-        with client.session_transaction() as s:
-            s["user_id"] = user_id
+        _login_session(client, user_id)
         with patch(_EXEC, return_value=pd.DataFrame([{"VN": "V1"}])):
             resp = client.post("/api/emr", json={"hn": "123"})
         assert resp.status_code == 200
+
+
+class TestTwoFactorAuth:
+    def _make_pending_user(self, email, totp_enabled=False, totp_secret=None):
+        with get_db_session() as db:
+            user = User(
+                email=email,
+                google_sub=f"sub-{email}",
+                is_verified=True,
+                is_active=True,
+                totp_enabled=totp_enabled,
+                totp_secret=totp_secret,
+            )
+            db.add(user)
+            db.flush()
+            return user.id
+
+    def test_login_required_redirects_to_setup_when_not_enrolled(self, client):
+        user_id = self._make_pending_user("no2fa-user@example.com")
+        with client.session_transaction() as s:
+            s["user_id"] = user_id
+        resp = client.get("/")
+        assert resp.status_code == 302
+        assert "/auth/setup-2fa" in resp.headers["Location"]
+
+    def test_login_required_redirects_to_verify_when_enrolled(self, client):
+        import pyotp
+
+        secret = pyotp.random_base32()
+        user_id = self._make_pending_user("2fa-user@example.com", totp_enabled=True, totp_secret=secret)
+        with client.session_transaction() as s:
+            s["user_id"] = user_id
+        resp = client.get("/")
+        assert resp.status_code == 302
+        assert "/auth/verify-2fa" in resp.headers["Location"]
+
+    def test_setup_2fa_enrolls_with_correct_code(self, client):
+        import pyotp
+
+        user_id = self._make_pending_user("enroll-user@example.com")
+        with client.session_transaction() as s:
+            s["user_id"] = user_id
+
+        client.get("/auth/setup-2fa")  # generates and stores the secret
+        with get_db_session() as db:
+            secret = db.get(User, user_id).totp_secret
+        assert secret
+
+        code = pyotp.TOTP(secret).now()
+        resp = client.post("/auth/setup-2fa", data={"code": code})
+        assert resp.status_code == 302
+        assert resp.headers["Location"].endswith("/")
+
+        with get_db_session() as db:
+            assert db.get(User, user_id).totp_enabled is True
+
+    def test_verify_2fa_rejects_wrong_code(self, client):
+        import pyotp
+
+        secret = pyotp.random_base32()
+        user_id = self._make_pending_user("wrongcode-user@example.com", totp_enabled=True, totp_secret=secret)
+        with client.session_transaction() as s:
+            s["user_id"] = user_id
+
+        resp = client.post("/auth/verify-2fa", data={"code": "000000"})
+        assert resp.status_code == 200  # re-rendered with an error, not redirected
+        with client.session_transaction() as s:
+            assert not s.get("totp_verified")
+
+    def test_verify_2fa_accepts_correct_code(self, client):
+        import pyotp
+
+        secret = pyotp.random_base32()
+        user_id = self._make_pending_user("rightcode-user@example.com", totp_enabled=True, totp_secret=secret)
+        with client.session_transaction() as s:
+            s["user_id"] = user_id
+
+        code = pyotp.TOTP(secret).now()
+        resp = client.post("/auth/verify-2fa", data={"code": code})
+        assert resp.status_code == 302
+        with client.session_transaction() as s:
+            assert s.get("totp_verified") is True
 
 
 class TestSerializer:

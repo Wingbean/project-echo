@@ -1,7 +1,10 @@
-# app/api/routes_auth.py - Google OAuth login, logout, email verification
+# app/api/routes_auth.py - Google OAuth login, logout, email verification, TOTP 2FA
+import qrcode
+import qrcode.image.svg
+import pyotp
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
-from flask import flash, redirect, session, url_for
+from flask import flash, redirect, render_template, request, session, url_for
 
 from app import oauth
 from app.api import views_bp
@@ -77,7 +80,75 @@ def auth_callback():
 @views_bp.route("/auth/logout")
 def auth_logout():
     session.pop("user_id", None)
+    session.pop("totp_verified", None)
     return redirect(url_for("views.index"))
+
+
+def _require_pending_user():
+    """Fetch the user mid-login (session['user_id'] set, 2FA not yet done).
+    Not login_required — that would redirect back here in a loop."""
+    from app.utils.auth import get_current_user
+
+    user = get_current_user()
+    if user is None or not (user.is_verified and user.is_active):
+        return None
+    return user
+
+
+def _totp_qr_svg(uri: str) -> str:
+    factory = qrcode.image.svg.SvgPathImage
+    img = qrcode.make(uri, image_factory=factory)
+    return img.to_string(encoding="unicode")
+
+
+@views_bp.route("/auth/setup-2fa", methods=["GET", "POST"])
+def setup_2fa():
+    """First-time TOTP enrollment: show a QR code, confirm with one code."""
+    user = _require_pending_user()
+    if user is None:
+        return redirect(url_for("views.login_page"))
+    if user.totp_enabled:
+        return redirect(url_for("views.verify_2fa"))
+
+    if request.method == "POST":
+        code = request.form.get("code", "").strip()
+        if pyotp.TOTP(user.totp_secret).verify(code, valid_window=1):
+            with get_db_session() as db:
+                db_user = db.get(User, user.id)
+                db_user.totp_enabled = True
+            session["totp_verified"] = True
+            return redirect(url_for("views.index"))
+        flash("รหัสไม่ถูกต้อง กรุณาลองใหม่", "error")
+
+    if not user.totp_secret:
+        with get_db_session() as db:
+            db_user = db.get(User, user.id)
+            db_user.totp_secret = pyotp.random_base32()
+            secret = db_user.totp_secret
+    else:
+        secret = user.totp_secret
+
+    uri = pyotp.TOTP(secret).provisioning_uri(name=user.email, issuer_name="Project Echo")
+    return render_template("pages/setup_2fa.html", qr_svg=_totp_qr_svg(uri), secret=secret)
+
+
+@views_bp.route("/auth/verify-2fa", methods=["GET", "POST"])
+def verify_2fa():
+    """Routine per-session TOTP check for accounts that already enrolled."""
+    user = _require_pending_user()
+    if user is None:
+        return redirect(url_for("views.login_page"))
+    if not user.totp_enabled:
+        return redirect(url_for("views.setup_2fa"))
+
+    if request.method == "POST":
+        code = request.form.get("code", "").strip()
+        if pyotp.TOTP(user.totp_secret).verify(code, valid_window=1):
+            session["totp_verified"] = True
+            return redirect(url_for("views.index"))
+        flash("รหัสไม่ถูกต้อง กรุณาลองใหม่", "error")
+
+    return render_template("pages/verify_2fa.html")
 
 
 @views_bp.route("/auth/verify-email/<token>")

@@ -14,6 +14,8 @@ dependencies = [
     "gunicorn",         # Production WSGI server
     "authlib",          # Google OAuth/OIDC client
     "requests",         # HTTP client required by authlib's Flask integration
+    "pyotp>=2.10.0",
+    "qrcode[pil]>=8.2",
 ]
 
 [dependency-groups]
