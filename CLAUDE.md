@@ -72,7 +72,7 @@ This app is a read-only reporting layer in front of a hospital information syste
 1. SQL lives in `sql/*.sql` files, read (and `@lru_cache`d) via `app/utils/sql_reader.py`.
 2. `app/services/hosxp_service.py:execute_sql_on_hosxp` runs a query against HosXP (`app/models/connection.py:get_hosxp_connection`, a module-level singleton engine) with pandas and returns a DataFrame — no local caching. Used by every per-HN search endpoint.
 
-There is no SQLite cache, sync job, scheduler, or dashboard — that machinery was removed once it was clear the dashboard was unused. The only local state under `instance/` is `barcode_cache.json` (last scanned HN).
+There is no SQLite cache, sync job, scheduler, or dashboard of HosXP data — that machinery was removed once it was clear the dashboard was unused. Local state under `instance/` is `barcode_cache.json` (last scanned HN) plus `app.db` — a small SQLite DB, unrelated to HosXP caching, that stores the local user-accounts table for the auth system (see Auth model below).
 
 ### Per-HN search endpoints follow one pattern
 
@@ -92,7 +92,7 @@ CSRF protection (Flask-WTF) is applied globally except where explicitly exempted
 
 ### Config
 
-All runtime config comes from `.env` via `app/config.py:Config` (loaded once with `load_dotenv()`). There is no separate dev/prod config class — behavior differences (e.g. `DEBUG`, `SESSION_COOKIE_SECURE`) are env-var-driven flags on the single `Config` class.
+All runtime config comes from `.env` via `app/config.py:Config` (loaded once with `load_dotenv()`). There is no separate dev/prod config class — behavior differences (e.g. `DEBUG`, `SESSION_COOKIE_SECURE`) are env-var-driven flags on the single `Config` class. Auth-related vars: `BASE_URL` (derives `GOOGLE_REDIRECT_URI` as `{BASE_URL}/auth/callback` — must match what's registered in Google Cloud Console exactly, including scheme; Google requires HTTPS for any non-`localhost` redirect URI), `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`, `EMAIL_FROM`/`EMAIL_PASSWORD` (Gmail SMTP, hardcoded to `smtp.gmail.com:587` in `app/utils/email.py` — spaces in a pasted Gmail App Password are stripped automatically), `ADMIN_EMAILS`, `EMAIL_VERIFY_TOKEN_MAX_AGE`.
 
 ### Frontend
 
