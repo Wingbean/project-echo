@@ -7,6 +7,8 @@ api_bp = Blueprint("api", __name__)
 # Views Blueprint (for page rendering)
 views_bp = Blueprint("views", __name__)
 
-# Import routes to register them with blueprints
-from app.api import routes  # noqa: F401, E402
-from app.api import views   # noqa: F401, E402
+# Import route modules for their registration side effects
+from app.api import routes_auth     # noqa: F401, E402
+from app.api import routes_search   # noqa: F401, E402
+from app.api import routes_barcode  # noqa: F401, E402
+from app.api import views           # noqa: F401, E402

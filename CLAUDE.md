@@ -22,7 +22,7 @@ docker compose up --build -d
 uv run pytest tests/
 
 # Run a single test
-uv run pytest tests/test_app.py::TestAPIRoutes::test_sync_without_pin
+uv run pytest tests/test_app.py::TestPerHNEndpoints::test_egfr_success_and_zfill
 ```
 
 There is no configured linter/formatter in `pyproject.toml` — don't assume `ruff`/`black` are present unless added.
@@ -43,7 +43,7 @@ docker compose ps
 
 # 4. Exercise the app while it's running (hit real routes/endpoints, e.g.)
 curl -i http://localhost:5009/
-curl -i http://localhost:5009/api/dashboard-data
+curl -i -X POST http://localhost:5009/api/emr -H 'Content-Type: application/json' -d '{"hn":"123"}'  # expect 401 unauth
 
 # 5. Inspect logs for errors/tracebacks
 docker compose logs web --tail=200
@@ -60,35 +60,31 @@ After verifying, tear down or leave running per the user's preference — don't 
 ## Architecture
 
 Flask app factory (`app/__init__.py:create_app`) wires together two blueprints registered in `app/api/__init__.py`:
-- `api_bp` (`app/api/routes.py`, mounted at `/api`) — JSON endpoints.
+- `api_bp` (mounted at `/api`) — JSON endpoints, split by concern across `app/api/routes_auth.py` (secret-code verify), `routes_search.py` (per-HN lookups), and `routes_barcode.py` (scanner + DB diagnostic).
 - `views_bp` (`app/api/views.py`, mounted at `/`) — Jinja2 page rendering.
 
-Both blueprints are populated purely by importing `routes` and `views` for their route-registration side effects — there's no other wiring, so a new endpoint just needs a `@api_bp.route` or `@views_bp.route` decorator in the corresponding file.
+Both blueprints are populated purely by importing those route modules for their registration side effects — there's no other wiring. A new endpoint just needs a `@api_bp.route`/`@views_bp.route` decorator in the matching module, and (if it's a new module) an import line in `app/api/__init__.py`.
 
-### Data flow: HosXP → SQLite cache → UI
+### Data flow: HosXP → UI (ad-hoc, no cache)
 
-This app is a read-mostly reporting layer in front of a hospital information system (HosXP, a MySQL DB it does not own):
+This app is a read-only reporting layer in front of a hospital information system (HosXP, a MySQL DB it does not own):
 
-1. SQL lives in `sql/*.sql` files, read via `app/utils/sql_reader.py`.
-2. `app/services/hosxp_service.py` runs those queries against HosXP (`app/models/connection.py:get_hosxp_connection`) with pandas, and either:
-   - **caches** results into the local SQLite `instance/data_cache.db` (`sync_data_from_hosxp`, used for dashboard/bulk data), or
-   - **executes ad-hoc** and returns a DataFrame directly without caching (`execute_sql_on_hosxp`, used by per-HN search endpoints like `/api/egfr`, `/api/a1c`, `/api/inr`, `/api/emr`, `/api/consult`, `/api/flow_opd`).
-3. `app/services/render_service.py` reads the SQLite cache back out for dashboard/table display.
-4. `app/services/scheduler_service.py` runs `sync_data_from_hosxp` on a fixed daily schedule (08:00/12:00/16:00) in a background thread started from `create_app`.
+1. SQL lives in `sql/*.sql` files, read (and `@lru_cache`d) via `app/utils/sql_reader.py`.
+2. `app/services/hosxp_service.py:execute_sql_on_hosxp` runs a query against HosXP (`app/models/connection.py:get_hosxp_connection`, a module-level singleton engine) with pandas and returns a DataFrame — no local caching. Used by every per-HN search endpoint.
 
-Two separate file locks under `instance/` guard against duplicate work across gunicorn workers: `scheduler.lock` (only one worker starts the scheduler thread) and `data_cache.sync.lock` (only one sync runs at a time). Sync progress/results are polled via a JSON file (`instance/sync_status.json`), not held in memory, since gunicorn workers don't share process state — `/api/sync` starts a background thread and returns immediately, `/api/sync-status` reads the file.
+There is no SQLite cache, sync job, scheduler, or dashboard — that machinery was removed once it was clear the dashboard was unused. The only local state under `instance/` is `barcode_cache.json` (last scanned HN).
 
 ### Per-HN search endpoints follow one pattern
 
-`/api/egfr`, `/api/a1c`, `/api/inr`, `/api/emr`, `/api/consult`, `/api/flow_opd` in `app/api/routes.py` are all built the same way: validate `hn` is digits (zero-padded to 7 for most, but *not* `consult`/`flow_opd`), call `execute_sql_on_hosxp("<name>.sql", params={"hn": hn})`, `fillna("")`, then manually convert pandas Timedelta/Timestamp/NaT values to JSON-safe strings before returning `{status, columns, records, total}`. When adding a new lab/record type, copy this pattern rather than inventing a new response shape. `/api/emr` additionally fetches `emr_rx.sql` and groups prescription rows by `VN` (visit number) onto each record as `rx_list`.
+`/api/egfr`, `/api/a1c`, `/api/inr`, `/api/consult`, `/api/flow_opd`, `/api/emr` in `app/api/routes_search.py` share the helper `_hn_search("<name>.sql", zfill=...)`: it validates `hn` is digits (zero-padded to 7 for most, but *not* `consult`/`flow_opd`, which pass `zfill=False`), runs the query, and serializes the DataFrame via `records_from_df` (`app/utils/helpers.py`) into `{status, columns, records, total}`. When adding a new lab/record type, add a one-liner that calls `_hn_search(...)` — do not re-inline the serialization. `/api/emr` is the one exception: it requires auth, additionally fetches `emr_rx.sql`, and groups prescription rows by `VN` (visit number) onto each record as `rx_list`.
 
 ### Auth model
 
-Two independent auth schemes, both session-cookie based (no user accounts):
-- **Secret code pages** (`/echo`, `/emr`): a single shared code per page (`ECHO_SECRET_CODE`, checked via a shared page's own code) sets `session["echo_authenticated"]` / `session["emr_authenticated"]`. See `_verify_secret_code` in `routes.py`.
-- **Sync endpoints** (`/api/sync`, `/api/sync-auto`): PIN passed via `X-Sync-Pin` header, checked against `Config.SYNC_PIN`, not session-based, and CSRF-exempt (see `@csrf.exempt` throughout `routes.py` on GET-based/external-facing endpoints).
+Session-cookie based (no user accounts), all secret-code driven:
+- **Secret code pages** (`/echo`, `/emr`): a single shared `ECHO_SECRET_CODE` sets `session["echo_authenticated"]` / `session["emr_authenticated"]` via `_verify_secret_code` in `routes_auth.py` (constant-time `hmac.compare_digest`).
+- **`/api/emr` is PHI** and enforces this at the API level too — it requires `emr_authenticated` *or* `echo_authenticated` (the `/echo` integrated view also reads EMR). The other per-HN endpoints are intentionally open (their pages are public).
 
-CSRF protection (Flask-WTF) is applied globally except where explicitly exempted; endpoints hit by non-browser clients (barcode scanner, polling) are exempted.
+CSRF protection (Flask-WTF) is applied globally except where explicitly exempted; endpoints hit by non-browser clients (barcode scanner in `routes_barcode.py`) are exempted.
 
 ### Config
 
