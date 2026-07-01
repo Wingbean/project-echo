@@ -6,11 +6,25 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def _get_secret_key() -> str:
+    """Return SECRET_KEY, refusing to start production with a default one."""
+    key = os.getenv("SECRET_KEY")
+    env = os.getenv("FLASK_ENV", "production")
+    if not key:
+        if env == "production":
+            raise RuntimeError(
+                "SECRET_KEY is not set. Refusing to start in production "
+                "with a default key — set SECRET_KEY in .env."
+            )
+        return "dev-secret-key-change-in-production"
+    return key
+
+
 class Config:
     """Base configuration loaded from environment variables."""
 
     # Flask Core
-    SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
+    SECRET_KEY = _get_secret_key()
     FLASK_ENV = os.getenv("FLASK_ENV", "production")
     DEBUG = os.getenv("FLASK_DEBUG", "0") == "1"
 
@@ -33,21 +47,9 @@ class Config:
     HOSXP_DB = os.getenv("HOSXP_DB", "")
     HOSXP_PORT = int(os.getenv("HOSXP_PORT", "3306"))
 
-    # Sync PIN
-    SYNC_PIN = os.getenv("SYNC_PIN", "")
-
     # Echo Secret Code
     ECHO_SECRET_CODE = os.getenv("ECHO_SECRET_CODE", "")
 
-    # Google Sheets (Optional)
-    GOOGLE_SHEETS_CREDENTIALS = os.getenv("GOOGLE_SHEETS_CREDENTIALS", "")
-    SPREADSHEET_ID = os.getenv("SPREADSHEET_ID", "")
-
-    # External API
-    API_BASE_URL = os.getenv("API_BASE_URL", "")
-    API_KEY = os.getenv("API_KEY", "")
-
-    # SQLite (local cache)
+    # Instance dir (barcode cache + lock files)
     BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
-    SQLITE_DB_PATH = os.path.join(BASE_DIR, "instance", "data_cache.db")
     INSTANCE_DIR = os.path.join(BASE_DIR, "instance")

@@ -1,81 +1,28 @@
 # app/api/routes.py - API Endpoints (JSON responses)
 import os
 import json
-import threading
 import time
 import re
+import hmac
 
 from flask import jsonify, request, session
+from sqlalchemy import text
+
 from app.api import api_bp
 from app import csrf
 from app.config import Config
 from app.models.connection import get_hosxp_connection
-from app.services.hosxp_service import (
-    sync_data_from_hosxp,
-    get_last_sync_time,
-    execute_sql_on_hosxp,
-)
-from app.services.render_service import get_dashboard_data, get_table_data
-from app.utils.validators import validate_date, validate_table_name
-from app.utils.helpers import get_current_month_range
-
-# Sync status file path
-_SYNC_STATUS_FILE = os.path.join(Config.INSTANCE_DIR, "sync_status.json")
-
-
-def _set_sync_status(status_dict: dict):
-    """Write sync status to file (atomic)."""
-    try:
-        os.makedirs(Config.INSTANCE_DIR, exist_ok=True)
-        tmp_file = _SYNC_STATUS_FILE + ".tmp"
-        with open(tmp_file, "w", encoding="utf-8") as f:
-            json.dump(status_dict, f, ensure_ascii=False)
-        os.replace(tmp_file, _SYNC_STATUS_FILE)
-    except Exception as e:
-        print(f"Error writing sync status: {e}")
-
-
-def _get_sync_status() -> dict:
-    """Read current sync status."""
-    if not os.path.exists(_SYNC_STATUS_FILE):
-        return {"status": "idle", "message": "ไม่มีการซิงค์ข้อมูล"}
-
-    for _ in range(3):
-        try:
-            with open(_SYNC_STATUS_FILE, "r", encoding="utf-8") as f:
-                content = f.read().strip()
-                if content:
-                    return json.loads(content)
-        except Exception:
-            pass
-        time.sleep(0.5)
-
-    return {"status": "running", "message": "กำลังตรวจสอบสถานะการซิงค์..."}
-
-
-def _verify_sync_pin() -> tuple[bool, dict]:
-    """Verify the sync PIN from request headers.
-
-    Returns:
-        Tuple of (is_valid, error_response).
-    """
-    pin = request.headers.get("X-Sync-Pin")
-    correct_pin = Config.SYNC_PIN
-
-    if not correct_pin:
-        return False, {"status": "error", "message": "SYNC_PIN not configured"}
-    if pin != correct_pin:
-        return False, {"status": "error", "message": "รหัสผ่านไม่ถูกต้อง (Invalid PIN)"}
-    return True, {}
+from app.services.hosxp_service import execute_sql_on_hosxp
+from app.utils.helpers import records_from_df
 
 
 # --- Secret Code Verification ---
 
 def _verify_secret_code(session_key: str):
-    """Shared verification logic for secret code protected pages.
+    """Shared verification logic for secret-code protected pages.
 
     Args:
-        session_key: The session key to set on success (e.g. 'echo_authenticated').
+        session_key: Session key to set on success (e.g. 'echo_authenticated').
 
     Returns:
         Flask JSON response tuple.
@@ -90,7 +37,8 @@ def _verify_secret_code(session_key: str):
     if not correct_code:
         return jsonify({"status": "error", "message": "ECHO_SECRET_CODE not configured"}), 500
 
-    if code != correct_code:
+    # constant-time comparison to avoid leaking the code via timing
+    if not hmac.compare_digest(code, correct_code):
         return jsonify({"status": "error", "message": "รหัสไม่ถูกต้อง"}), 401
 
     session[session_key] = True
@@ -109,489 +57,115 @@ def verify_emr():
     return _verify_secret_code("emr_authenticated")
 
 
-# --- Sync Endpoints ---
+# --- Per-HN search endpoints ---
 
-@api_bp.route("/sync", methods=["GET"])
-@csrf.exempt
-def sync_data():
-    """Trigger a full data sync from HosXP to SQLite.
-
-    Requires X-Sync-Pin header for authentication.
-    Runs in background thread to prevent timeout.
-    """
-    is_valid, error = _verify_sync_pin()
-    if not is_valid:
-        return jsonify(error), 401
-
-    current_status = _get_sync_status()
-    if current_status.get("status") == "running":
-        return jsonify({
-            "status": "running",
-            "message": "การซิงค์ข้อมูลกำลังทำงานอยู่ กรุณารอสักครู่",
-        })
-
-    start_date = request.args.get("start_date", "")
-    end_date = request.args.get("end_date", "")
-
-    if not start_date or not end_date:
-        start_date, end_date = get_current_month_range()
-
-    if not validate_date(start_date) or not validate_date(end_date):
-        return jsonify({"status": "error", "message": "รูปแบบวันที่ไม่ถูกต้อง"}), 400
-
-    _set_sync_status({"status": "running", "message": "กำลังซิงค์ข้อมูล..."})
-
-    def _run():
-        try:
-            result = sync_data_from_hosxp(start_date, end_date)
-            _set_sync_status(result)
-            print(f"✅ Background sync completed: {result.get('status')}")
-        except Exception as e:
-            _set_sync_status({"status": "error", "message": str(e)})
-            print(f"❌ Background sync failed: {e}")
-
-    thread = threading.Thread(target=_run, daemon=True)
-    thread.start()
-
-    return jsonify({"status": "started", "message": "เริ่มซิงค์ข้อมูลแล้ว กรุณารอสักครู่..."})
-
-
-@api_bp.route("/sync-auto", methods=["GET"])
-@csrf.exempt
-def sync_auto():
-    """Trigger an automatic sync (excludes historical data)."""
-    is_valid, error = _verify_sync_pin()
-    if not is_valid:
-        return jsonify(error), 401
-
-    current_status = _get_sync_status()
-    if current_status.get("status") == "running":
-        return jsonify({
-            "status": "running",
-            "message": "การซิงค์ข้อมูลกำลังทำงานอยู่ กรุณารอสักครู่",
-        })
-
-    _set_sync_status({"status": "running", "message": "กำลังซิงค์ข้อมูลอัตโนมัติ..."})
-
-    def _run():
-        try:
-            start_date, end_date = get_current_month_range()
-            result = sync_data_from_hosxp(start_date, end_date)
-            _set_sync_status(result)
-        except Exception as e:
-            _set_sync_status({"status": "error", "message": str(e)})
-
-    thread = threading.Thread(target=_run, daemon=True)
-    thread.start()
-
-    return jsonify({"status": "started", "message": "เริ่มซิงค์ข้อมูลอัตโนมัติแล้ว"})
-
-
-@api_bp.route("/sync-status", methods=["GET"])
-@csrf.exempt
-def sync_status():
-    """Check the current sync status."""
-    return jsonify(_get_sync_status())
-
-
-@api_bp.route("/last-sync", methods=["GET"])
-@csrf.exempt
-def last_sync():
-    """Get the last sync timestamp."""
-    return jsonify({"last_sync": get_last_sync_time()})
-
-
-# --- Data Endpoints ---
-
-@api_bp.route("/dashboard-data", methods=["GET"])
-@csrf.exempt
-def dashboard_data():
-    """Get all dashboard data from SQLite cache."""
-    data = get_dashboard_data()
-    return jsonify(data)
-
-
-@api_bp.route("/table/<table_name>", methods=["GET"])
-@csrf.exempt
-def table_data(table_name: str):
-    """Get data for a specific cached table.
+def _hn_search(sql_file: str, zfill: bool = True):
+    """Shared per-HN lookup: validate HN, run the SQL, serialize the result.
 
     Args:
-        table_name: Name of the SQLite table (URL path parameter).
-    """
-    if not validate_table_name(table_name):
-        return jsonify({"status": "error", "message": "ชื่อตารางไม่ถูกต้อง"}), 400
-
-    data = get_table_data(table_name)
-    return jsonify(data)
-
-
-@api_bp.route("/query", methods=["POST"])
-def execute_query():
-    """Execute a query on cached SQLite data.
-
-    Expects JSON body with:
-        - table_name: Name of table to query.
-        - filters: Optional dict of column:value filters.
+        sql_file: SQL filename in sql/ (e.g. 'egfr.sql').
+        zfill: Zero-pad HN to 7 digits (True for most; consult/flow_opd pass
+               False on purpose — see CLAUDE.md).
     """
     data = request.get_json(silent=True)
-    if not data:
-        return jsonify({"status": "error", "message": "กรุณาส่งข้อมูล JSON"}), 400
+    if not data or not data.get("hn"):
+        return jsonify({"status": "error", "message": "กรุณาระบุ HN"}), 400
 
-    table_name = data.get("table_name", "")
-    if not validate_table_name(table_name):
-        return jsonify({"status": "error", "message": "ชื่อตารางไม่ถูกต้อง"}), 400
+    hn = str(data["hn"]).strip()
+    if zfill:
+        hn = hn.zfill(7)
 
-    result = get_table_data(table_name)
-    return jsonify(result)
+    if not re.match(r"^\d+$", hn):
+        return jsonify({"status": "error", "message": "HN ต้องเป็นตัวเลขเท่านั้น"}), 400
 
+    try:
+        columns, records = records_from_df(
+            execute_sql_on_hosxp(sql_file, params={"hn": hn})
+        )
+        return jsonify({
+            "status": "success",
+            "columns": columns,
+            "records": records,
+            "total": len(records),
+        })
+    except Exception as e:
+        print(f"❌ {sql_file} query failed: {e}")
+        return jsonify({"status": "error", "message": "เกิดข้อผิดพลาดในการดึงข้อมูล"}), 500
 
-# --- eGFR Endpoint ---
 
 @api_bp.route("/egfr", methods=["POST"])
 def egfr_search():
-    """Search eGFR records by HN.
+    """Search eGFR records by HN."""
+    return _hn_search("egfr.sql")
 
-    Expects JSON body with:
-        - hn: Patient hospital number (string).
-
-    Returns:
-        JSON with columns and records from egfr.sql.
-    """
-    data = request.get_json(silent=True)
-    if not data or not data.get("hn"):
-        return jsonify({"status": "error", "message": "กรุณาระบุ HN"}), 400
-
-    hn = str(data["hn"]).strip()
-    hn = hn.zfill(7) # pad with leading zeros, just to be safe at backend
-
-    # Validate HN: only digits allowed
-    if not re.match(r"^\d+$", hn):
-        return jsonify({"status": "error", "message": "HN ต้องเป็นตัวเลขเท่านั้น"}), 400
-
-    try:
-        df = execute_sql_on_hosxp("egfr.sql", params={"hn": hn})
-        # Replace NaN/NaT with empty strings to ensure valid JSON
-        df = df.fillna("")
-        columns = df.columns.tolist()
-        records = df.to_dict(orient="records")
-
-        # Convert date/datetime/timedelta objects to strings for JSON serialization
-        for record in records:
-            for key, val in record.items():
-                if hasattr(val, "components"): # For pandas Timedelta
-                    ts = str(val).split()[-1]
-                    record[key] = ts.split('.')[0]
-                elif hasattr(val, "isoformat"):
-                    dt_str = val.isoformat()
-                    record[key] = "" if dt_str == "NaT" else dt_str
-                elif val is None:
-                    record[key] = ""
-                else:
-                    record[key] = str(val) if not isinstance(val, (int, float, str, bool)) else val
-
-        return jsonify({
-            "status": "success",
-            "columns": columns,
-            "records": records,
-            "total": len(records),
-        })
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-
-# --- A1C Endpoint ---
 
 @api_bp.route("/a1c", methods=["POST"])
 def a1c_search():
-    """Search A1C records by HN.
+    """Search A1C records by HN."""
+    return _hn_search("a1c.sql")
 
-    Expects JSON body with:
-        - hn: Patient hospital number (string).
-
-    Returns:
-        JSON with columns and records from a1c.sql.
-    """
-    data = request.get_json(silent=True)
-    if not data or not data.get("hn"):
-        return jsonify({"status": "error", "message": "กรุณาระบุ HN"}), 400
-
-    hn = str(data["hn"]).strip()
-    hn = hn.zfill(7) # pad with leading zeros
-
-    # Validate HN: only digits allowed
-    if not re.match(r"^\d+$", hn):
-        return jsonify({"status": "error", "message": "HN ต้องเป็นตัวเลขเท่านั้น"}), 400
-
-    try:
-        df = execute_sql_on_hosxp("a1c.sql", params={"hn": hn})
-        df = df.fillna("")
-        columns = df.columns.tolist()
-        records = df.to_dict(orient="records")
-
-        # Convert objects to strings for JSON
-        for record in records:
-            for key, val in record.items():
-                if hasattr(val, "components"):
-                    ts = str(val).split()[-1]
-                    record[key] = ts.split('.')[0]
-                elif hasattr(val, "isoformat"):
-                    dt_str = val.isoformat()
-                    record[key] = "" if dt_str == "NaT" else dt_str
-                elif val is None:
-                    record[key] = ""
-                else:
-                    record[key] = str(val) if not isinstance(val, (int, float, str, bool)) else val
-
-        return jsonify({
-            "status": "success",
-            "columns": columns,
-            "records": records,
-            "total": len(records),
-        })
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-
-# --- INR Endpoint ---
 
 @api_bp.route("/inr", methods=["POST"])
 def inr_search():
-    """Search INR records by HN.
+    """Search INR records by HN."""
+    return _hn_search("inr.sql")
 
-    Expects JSON body with:
-        - hn: Patient hospital number (string).
-
-    Returns:
-        JSON with columns and records from inr.sql.
-    """
-    data = request.get_json(silent=True)
-    if not data or not data.get("hn"):
-        return jsonify({"status": "error", "message": "กรุณาระบุ HN"}), 400
-
-    hn = str(data["hn"]).strip()
-    hn = hn.zfill(7) # pad with leading zeros
-
-    # Validate HN: only digits allowed
-    if not re.match(r"^\d+$", hn):
-        return jsonify({"status": "error", "message": "HN ต้องเป็นตัวเลขเท่านั้น"}), 400
-
-    try:
-        df = execute_sql_on_hosxp("inr.sql", params={"hn": hn})
-        df = df.fillna("")
-        columns = df.columns.tolist()
-        records = df.to_dict(orient="records")
-
-        # Convert objects to strings for JSON
-        for record in records:
-            for key, val in record.items():
-                if hasattr(val, "components"):
-                    ts = str(val).split()[-1]
-                    record[key] = ts.split('.')[0]
-                elif hasattr(val, "isoformat"):
-                    dt_str = val.isoformat()
-                    record[key] = "" if dt_str == "NaT" else dt_str
-                elif val is None:
-                    record[key] = ""
-                else:
-                    record[key] = str(val) if not isinstance(val, (int, float, str, bool)) else val
-
-        return jsonify({
-            "status": "success",
-            "columns": columns,
-            "records": records,
-            "total": len(records),
-        })
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-
-# --- EMR Endpoint ---
-
-@api_bp.route("/emr", methods=["POST"])
-def emr_search():
-    """Search EMR records by HN.
-
-    Expects JSON body with:
-        - hn: Patient hospital number (string).
-
-    Returns:
-        JSON with columns and records from emr_hx_pe_dx_op.sql.
-    """
-    data = request.get_json(silent=True)
-    if not data or not data.get("hn"):
-        return jsonify({"status": "error", "message": "กรุณาระบุ HN"}), 400
-
-    hn = str(data["hn"]).strip()
-    hn = hn.zfill(7) # pad with leading zeros
-
-    # Validate HN: only digits allowed
-    if not re.match(r"^\d+$", hn):
-        return jsonify({"status": "error", "message": "HN ต้องเป็นตัวเลขเท่านั้น"}), 400
-
-    try:
-        # Fetch Diagnosis and History
-        df = execute_sql_on_hosxp("emr_hx_pe_dx_op.sql", params={"hn": hn})
-        df = df.fillna("")
-        columns = df.columns.tolist()
-        records = df.to_dict(orient="records")
-
-        # Fetch Rx data
-        try:
-            rx_df = execute_sql_on_hosxp("emr_rx.sql", params={"hn": hn})
-            rx_df = rx_df.fillna("")
-            rx_records = rx_df.to_dict(orient="records")
-        except Exception as e:
-            print(f"Failed to fetch rx data: {e}")
-            rx_records = []
-
-        # Group Rx records by VN
-        rx_by_vn = {}
-        for rx in rx_records:
-            vn = str(rx.get("vn", ""))
-            if not vn: continue
-            if vn not in rx_by_vn:
-                rx_by_vn[vn] = []
-            
-            # Formatting values for Rx serialization
-            processed_rx = {}
-            for key, val in rx.items():
-                if hasattr(val, "components"):
-                    ts = str(val).split()[-1]
-                    processed_rx[key] = ts.split('.')[0]
-                elif hasattr(val, "isoformat"):
-                    dt_str = val.isoformat()
-                    processed_rx[key] = "" if dt_str == "NaT" else dt_str
-                elif val is None:
-                    processed_rx[key] = ""
-                else:
-                    processed_rx[key] = str(val) if not isinstance(val, (int, float, str, bool)) else val
-                    
-            rx_by_vn[vn].append(processed_rx)
-
-        # Merge Rx into records
-        for record in records:
-            vn = str(record.get("VN", ""))
-            record["rx_list"] = rx_by_vn.get(vn, [])
-            
-            # Convert objects to strings for JSON
-            for key, val in record.items():
-                if key == "rx_list": continue
-                if hasattr(val, "components"):
-                    ts = str(val).split()[-1]
-                    record[key] = ts.split('.')[0]
-                elif hasattr(val, "isoformat"):
-                    dt_str = val.isoformat()
-                    record[key] = "" if dt_str == "NaT" else dt_str
-                elif val is None:
-                    record[key] = ""
-                else:
-                    record[key] = str(val) if not isinstance(val, (int, float, str, bool)) else val
-
-        return jsonify({
-            "status": "success",
-            "columns": columns,
-            "records": records,
-            "total": len(records),
-        })
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-
-# --- Consult Endpoint ---
 
 @api_bp.route("/consult", methods=["POST"])
 def consult_search():
-    """Search doctor consult records by HN.
+    """Search doctor consult records by HN (HN not zero-padded)."""
+    return _hn_search("consult.sql", zfill=False)
 
-    Expects JSON body with:
-        - hn: Patient hospital number (string).
-
-    Returns:
-        JSON with columns and records from doctor_consult table.
-    """
-    data = request.get_json(silent=True)
-    if not data or not data.get("hn"):
-        return jsonify({"status": "error", "message": "กรุณาระบุ HN"}), 400
-
-    hn = str(data["hn"]).strip()
-
-    # Validate HN: only digits allowed
-    if not re.match(r"^\d+$", hn):
-        return jsonify({"status": "error", "message": "HN ต้องเป็นตัวเลขเท่านั้น"}), 400
-
-    try:
-        df = execute_sql_on_hosxp("consult.sql", params={"hn": hn})
-        # Replace NaN/NaT with empty strings to ensure valid JSON
-        df = df.fillna("")
-        columns = df.columns.tolist()
-        records = df.to_dict(orient="records")
-
-        # Convert date/datetime objects to strings for JSON serialization
-        for record in records:
-            for key, val in record.items():
-                if hasattr(val, "components"): # For pandas Timedelta
-                    ts = str(val).split()[-1]
-                    record[key] = ts.split('.')[0]
-                elif hasattr(val, "isoformat"):
-                    dt_str = val.isoformat()
-                    record[key] = "" if dt_str == "NaT" else dt_str
-                elif val is None:
-                    record[key] = ""
-
-        return jsonify({
-            "status": "success",
-            "columns": columns,
-            "records": records,
-            "total": len(records),
-        })
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-
-# --- OPD Flow Endpoint ---
 
 @api_bp.route("/flow_opd", methods=["POST"])
 def flow_opd_search():
-    """Search OPD Flow records by HN for today.
+    """Search today's OPD flow records by HN (HN not zero-padded)."""
+    return _hn_search("flow_opd.sql", zfill=False)
 
-    Expects JSON body with:
-        - hn: Patient hospital number (string).
 
-    Returns:
-        JSON with columns and records from flow_opd.sql.
+@api_bp.route("/emr", methods=["POST"])
+def emr_search():
+    """Search EMR records by HN. Requires EMR authentication.
+
+    Fetches Hx/PE/Dx/OP plus prescriptions, grouping rx rows by VN onto
+    each record as `rx_list`.
     """
+    # PHI: the /emr page gates access; the API must too. Both /emr and the
+    # integrated /echo dashboard (echo_authenticated) legitimately read EMR,
+    # and both are gated by the same secret code — so accept either.
+    if not (session.get("emr_authenticated") or session.get("echo_authenticated")):
+        return jsonify({"status": "error", "message": "กรุณายืนยันรหัสก่อนเข้าใช้งาน"}), 401
+
     data = request.get_json(silent=True)
     if not data or not data.get("hn"):
         return jsonify({"status": "error", "message": "กรุณาระบุ HN"}), 400
 
-    hn = str(data["hn"]).strip()
-
-    # Validate HN: only digits allowed
+    hn = str(data["hn"]).strip().zfill(7)
     if not re.match(r"^\d+$", hn):
         return jsonify({"status": "error", "message": "HN ต้องเป็นตัวเลขเท่านั้น"}), 400
 
     try:
-        df = execute_sql_on_hosxp("flow_opd.sql", params={"hn": hn})
-        # Replace NaN/NaT with empty strings to ensure valid JSON
-        df = df.fillna("")
-        columns = df.columns.tolist()
-        records = df.to_dict(orient="records")
+        columns, records = records_from_df(
+            execute_sql_on_hosxp("emr_hx_pe_dx_op.sql", params={"hn": hn})
+        )
 
-        # Convert date/datetime/timedelta objects to strings for JSON serialization
+        # Rx is best-effort — missing rx shouldn't fail the whole record fetch.
+        try:
+            _, rx_records = records_from_df(
+                execute_sql_on_hosxp("emr_rx.sql", params={"hn": hn})
+            )
+        except Exception as e:
+            print(f"❌ emr_rx query failed: {e}")
+            rx_records = []
+
+        rx_by_vn = {}
+        for rx in rx_records:
+            vn = str(rx.get("vn", ""))
+            if vn:
+                rx_by_vn.setdefault(vn, []).append(rx)
+
         for record in records:
-            for key, val in record.items():
-                if hasattr(val, "components"): # For pandas Timedelta
-                    # str(val) is like "0 days 22:00:10", we extract just time
-                    ts = str(val).split()[-1]
-                    record[key] = ts.split('.')[0]
-                elif hasattr(val, "isoformat"):
-                    dt_str = val.isoformat()
-                    record[key] = "" if dt_str == "NaT" else dt_str
-                elif val is None:
-                    record[key] = ""
-                else:
-                    record[key] = str(val) if not isinstance(val, (int, float, str, bool)) else val
+            record["rx_list"] = rx_by_vn.get(str(record.get("VN", "")), [])
 
         return jsonify({
             "status": "success",
@@ -600,8 +174,8 @@ def flow_opd_search():
             "total": len(records),
         })
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
+        print(f"❌ emr query failed: {e}")
+        return jsonify({"status": "error", "message": "เกิดข้อผิดพลาดในการดึงข้อมูล"}), 500
 
 
 # --- Database Test ---
@@ -612,52 +186,53 @@ def test_db():
     """Test HosXP database connection."""
     try:
         with get_hosxp_connection() as conn:
-            result = conn.execute(__import__("sqlalchemy").text("SELECT VERSION()"))
-            version = result.fetchone()[0]
+            version = conn.execute(text("SELECT VERSION()")).fetchone()[0]
         return jsonify({
             "status": "success",
             "message": "Connected to HosXP successfully!",
             "db_version": version,
         })
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        print(f"❌ test-db failed: {e}")
+        return jsonify({"status": "error", "message": "เชื่อมต่อฐานข้อมูลไม่สำเร็จ"}), 500
 
 
 # --- Barcode Trigger Endpoint ---
 
 _BARCODE_CACHE_FILE = os.path.join(Config.INSTANCE_DIR, "barcode_cache.json")
 
+
 @api_bp.route("/barcode-trigger", methods=["POST"])
 @csrf.exempt
 def barcode_trigger():
-    """Receive HN from background barcode scanner program."""
+    """Receive HN from the background barcode scanner program."""
     data = request.get_json(silent=True)
-    
-    # Also support form data if the client doesn't send JSON
     if not data and request.form:
         data = request.form.to_dict()
-        
+
     if not data or not data.get("hn"):
         return jsonify({"status": "error", "message": "กรุณาระบุ HN"}), 400
 
     hn = str(data["hn"]).strip()
-    
-    # Remove any non-digit characters if needed, or just pad zeros if it's purely digits
     if re.match(r"^\d+$", hn):
         hn = hn.zfill(7)
-        
+
     try:
         os.makedirs(Config.INSTANCE_DIR, exist_ok=True)
-        cache_data = {
-            "hn": hn,
-            "timestamp": time.time()
-        }
-        with open(_BARCODE_CACHE_FILE, "w", encoding="utf-8") as f:
+        cache_data = {"hn": hn, "timestamp": time.time()}
+        # atomic write so /last-scanned never reads a half-written file
+        tmp_file = _BARCODE_CACHE_FILE + ".tmp"
+        with open(tmp_file, "w", encoding="utf-8") as f:
             json.dump(cache_data, f)
-            
-        return jsonify({"status": "success", "message": f"Received HN {hn}", "timestamp": cache_data["timestamp"]})
+        os.replace(tmp_file, _BARCODE_CACHE_FILE)
+        return jsonify({
+            "status": "success",
+            "message": f"Received HN {hn}",
+            "timestamp": cache_data["timestamp"],
+        })
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        print(f"❌ barcode-trigger failed: {e}")
+        return jsonify({"status": "error", "message": "บันทึกข้อมูลไม่สำเร็จ"}), 500
 
 
 @api_bp.route("/last-scanned", methods=["GET"])
@@ -666,10 +241,15 @@ def get_last_scanned():
     """Get the last scanned HN."""
     if not os.path.exists(_BARCODE_CACHE_FILE):
         return jsonify({"status": "success", "hn": None, "timestamp": 0})
-        
+
     try:
         with open(_BARCODE_CACHE_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-        return jsonify({"status": "success", "hn": data.get("hn"), "timestamp": data.get("timestamp", 0)})
+        return jsonify({
+            "status": "success",
+            "hn": data.get("hn"),
+            "timestamp": data.get("timestamp", 0),
+        })
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        print(f"❌ last-scanned failed: {e}")
+        return jsonify({"status": "error", "message": "อ่านข้อมูลไม่สำเร็จ"}), 500

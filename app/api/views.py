@@ -1,14 +1,12 @@
 # app/api/views.py - Page Rendering Routes
 from flask import render_template, session, redirect, url_for
 from app.api import views_bp
-from app.services.render_service import get_dashboard_data
 
 
 @views_bp.route("/")
 def index():
-    """Homepage / Dashboard."""
-    data = get_dashboard_data()
-    return render_template("pages/index.html", data=data)
+    """Homepage — static grid of links to the search tools."""
+    return render_template("pages/index.html")
 
 
 @views_bp.route("/consult")

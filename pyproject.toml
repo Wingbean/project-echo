@@ -12,9 +12,10 @@ dependencies = [
     "pymysql",          # MySQL/MariaDB driver for HosXP
     "python-dotenv",    # Environment variable management
     "gunicorn",         # Production WSGI server
-    "requests",         # HTTP client for external APIs
-    "schedule",         # Task scheduler
 ]
+
+[dependency-groups]
+dev = ["pytest"]
 
 [tool.uv]
 # uv manages the virtual environment automatically

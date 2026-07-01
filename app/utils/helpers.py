@@ -1,63 +1,40 @@
 # app/utils/helpers.py - General Helper Functions
-import calendar
-from datetime import datetime
 
 
-def get_current_month_range() -> tuple[str, str]:
-    """Get start and end date of the current month.
+def _json_safe(val):
+    """Convert a single pandas/py value to a JSON-safe scalar.
 
-    Returns:
-        Tuple of (start_date, end_date) as YYYY-MM-DD strings.
+    Mirrors the per-cell conversion the per-HN endpoints used to inline:
+    Timedelta -> "HH:MM:SS", datetime/Timestamp -> isoformat, NaT/None -> "".
     """
-    now = datetime.now()
-    start_date = now.replace(day=1).strftime("%Y-%m-%d")
-    _, last_day = calendar.monthrange(now.year, now.month)
-    end_date = now.replace(day=last_day).strftime("%Y-%m-%d")
-    return start_date, end_date
+    if hasattr(val, "components"):  # pandas Timedelta -> "0 days 22:00:10.x"
+        ts = str(val).split()[-1]
+        return ts.split(".")[0]
+    if hasattr(val, "isoformat"):  # datetime / Timestamp / date
+        dt_str = val.isoformat()
+        return "" if dt_str == "NaT" else dt_str
+    if val is None:
+        return ""
+    return val if isinstance(val, (int, float, str, bool)) else str(val)
 
 
-def format_thai_date(dt: datetime) -> str:
-    """Format a datetime to Thai-friendly display.
+def records_from_df(df):
+    """Turn a DataFrame into (columns, JSON-safe records).
+
+    Single source of truth for the per-HN endpoints so the serialization
+    logic lives in one place. Fills NaN/NaT with "" then normalises every
+    cell via `_json_safe`.
 
     Args:
-        dt: A datetime object.
+        df: pandas DataFrame.
 
     Returns:
-        Formatted string like '26/02/2569' (Buddhist Era).
+        (columns: list[str], records: list[dict]) ready for jsonify.
     """
-    if dt is None:
-        return "-"
-    thai_year = dt.year + 543
-    return f"{dt.day:02d}/{dt.month:02d}/{thai_year}"
-
-
-def safe_int(value, default: int = 0) -> int:
-    """Safely convert a value to int.
-
-    Args:
-        value: Value to convert.
-        default: Default if conversion fails.
-
-    Returns:
-        Integer value or default.
-    """
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return default
-
-
-def safe_float(value, default: float = 0.0) -> float:
-    """Safely convert a value to float.
-
-    Args:
-        value: Value to convert.
-        default: Default if conversion fails.
-
-    Returns:
-        Float value or default.
-    """
-    try:
-        return float(value)
-    except (ValueError, TypeError):
-        return default
+    df = df.fillna("")
+    columns = df.columns.tolist()
+    records = df.to_dict(orient="records")
+    for record in records:
+        for key, val in record.items():
+            record[key] = _json_safe(val)
+    return columns, records

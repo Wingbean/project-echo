@@ -1,5 +1,6 @@
 # app/utils/sql_reader.py - SQL File Reader Utility
 import os
+from functools import lru_cache
 
 # Base directory for SQL files
 _SQL_DIR = os.path.join(
@@ -8,11 +9,14 @@ _SQL_DIR = os.path.join(
 )
 
 
+@lru_cache(maxsize=32)
 def get_sql_content(filename: str) -> str:
     """Read a SQL file from the sql/ directory.
 
+    Cached: .sql files are static at runtime, so read each once.
+
     Args:
-        filename: Name of the SQL file (e.g., 'schema.sql').
+        filename: Name of the SQL file (e.g., 'egfr.sql').
 
     Returns:
         The SQL file content as a string.
@@ -25,14 +29,3 @@ def get_sql_content(filename: str) -> str:
         raise FileNotFoundError(f"SQL file not found: {sql_path}")
     with open(sql_path, "r", encoding="utf-8") as f:
         return f.read()
-
-
-def list_sql_files() -> list[str]:
-    """List all .sql files available in the sql/ directory.
-
-    Returns:
-        Sorted list of SQL filenames.
-    """
-    if not os.path.isdir(_SQL_DIR):
-        return []
-    return sorted(f for f in os.listdir(_SQL_DIR) if f.endswith(".sql"))

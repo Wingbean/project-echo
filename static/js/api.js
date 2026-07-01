@@ -87,49 +87,4 @@ const EchoAPI = {
 
         return response.json();
     },
-
-    /**
-     * Trigger a sync operation.
-     * @param {string} pin - Sync PIN.
-     * @param {string} type - 'full' or 'auto'.
-     * @returns {Promise<Object>} JSON response.
-     */
-    async triggerSync(pin, type = 'auto') {
-        const endpoint = type === 'full' ? '/api/sync' : '/api/sync-auto';
-        const response = await fetch(endpoint, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'X-Sync-Pin': pin,
-            },
-        });
-
-        return response.json();
-    },
-
-    /**
-     * Poll sync status until complete.
-     * @param {Function} onUpdate - Callback with status object.
-     * @param {number} interval - Poll interval in ms.
-     * @returns {Promise<Object>} Final status.
-     */
-    async pollSyncStatus(onUpdate, interval = 2000) {
-        return new Promise((resolve) => {
-            const check = async () => {
-                try {
-                    const status = await this.get('/api/sync-status');
-                    if (onUpdate) onUpdate(status);
-
-                    if (status.status === 'running') {
-                        setTimeout(check, interval);
-                    } else {
-                        resolve(status);
-                    }
-                } catch (err) {
-                    resolve({ status: 'error', message: err.message });
-                }
-            };
-            check();
-        });
-    }
 };
