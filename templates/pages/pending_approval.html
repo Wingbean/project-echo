@@ -1,0 +1,61 @@
+{% extends "base.html" %} {% block title %}รอการอนุมัติ - Project Echo{%
+endblock %} {% block extra_css %}
+<style>
+  .pending-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+  }
+
+  .pending-card {
+    width: 100%;
+    max-width: 480px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-2xl);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+    text-align: center;
+  }
+
+  .pending-icon {
+    font-size: 3rem;
+    color: var(--color-primary);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .pending-title {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .pending-subtitle {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="pending-wrapper">
+  <div class="pending-card">
+    <div class="pending-icon">
+      <span class="material-symbols-rounded" style="font-size: inherit">
+        {% if user and not user.is_verified %}mail{% else %}hourglass_top{% endif %}
+      </span>
+    </div>
+    {% if user and not user.is_verified %}
+    <h1 class="pending-title">กรุณายืนยันอีเมลของคุณ</h1>
+    <p class="pending-subtitle">
+      เราได้ส่งลิงก์ยืนยันไปที่ {{ user.email }} แล้ว กรุณาคลิกลิงก์ในอีเมลเพื่อยืนยัน
+    </p>
+    {% else %}
+    <h1 class="pending-title">รอผู้ดูแลระบบอนุมัติ</h1>
+    <p class="pending-subtitle">
+      ยืนยันอีเมลสำเร็จแล้ว บัญชีของคุณกำลังรอผู้ดูแลระบบอนุมัติการใช้งาน
+    </p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

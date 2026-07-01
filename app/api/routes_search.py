@@ -1,10 +1,11 @@
 # app/api/routes_search.py - Per-HN search endpoints (labs, EMR)
 import re
 
-from flask import jsonify, request, session
+from flask import jsonify, request
 
 from app.api import api_bp
 from app.services.hosxp_service import execute_sql_on_hosxp
+from app.utils.auth import get_current_user, login_required
 from app.utils.helpers import records_from_df
 
 
@@ -43,31 +44,36 @@ def _hn_search(sql_file: str, zfill: bool = True):
 
 
 @api_bp.route("/egfr", methods=["POST"])
-def egfr_search():
+@login_required
+def egfr_search(current_user):
     """Search eGFR records by HN."""
     return _hn_search("egfr.sql")
 
 
 @api_bp.route("/a1c", methods=["POST"])
-def a1c_search():
+@login_required
+def a1c_search(current_user):
     """Search A1C records by HN."""
     return _hn_search("a1c.sql")
 
 
 @api_bp.route("/inr", methods=["POST"])
-def inr_search():
+@login_required
+def inr_search(current_user):
     """Search INR records by HN."""
     return _hn_search("inr.sql")
 
 
 @api_bp.route("/consult", methods=["POST"])
-def consult_search():
+@login_required
+def consult_search(current_user):
     """Search doctor consult records by HN (HN not zero-padded)."""
     return _hn_search("consult.sql", zfill=False)
 
 
 @api_bp.route("/flow_opd", methods=["POST"])
-def flow_opd_search():
+@login_required
+def flow_opd_search(current_user):
     """Search today's OPD flow records by HN (HN not zero-padded)."""
     return _hn_search("flow_opd.sql", zfill=False)
 
@@ -80,10 +86,13 @@ def emr_search():
     each record as `rx_list`.
     """
     # PHI: the /emr page gates access; the API must too. Both /emr and the
-    # integrated /echo dashboard (echo_authenticated) legitimately read EMR,
-    # and both are gated by the same secret code — so accept either.
-    if not (session.get("emr_authenticated") or session.get("echo_authenticated")):
-        return jsonify({"status": "error", "message": "กรุณายืนยันรหัสก่อนเข้าใช้งาน"}), 401
+    # integrated /echo dashboard legitimately read EMR, so either access flag
+    # is accepted (not access_required, which only checks a single flag).
+    user = get_current_user()
+    if user is None or not (user.is_verified and user.is_active):
+        return jsonify({"status": "error", "message": "กรุณาเข้าสู่ระบบก่อนเข้าใช้งาน"}), 401
+    if not (user.can_access_emr or user.can_access_echo):
+        return jsonify({"status": "error", "message": "ไม่มีสิทธิ์เข้าถึง"}), 403
 
     data = request.get_json(silent=True)
     if not data or not data.get("hn"):

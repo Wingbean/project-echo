@@ -14,6 +14,8 @@ import pandas as pd
 import pytest
 
 from app import create_app
+from app.models.local_db import get_db_session
+from app.models.user import User
 from app.utils.helpers import records_from_df
 
 
@@ -30,12 +32,38 @@ def client(app):
     return app.test_client()
 
 
+def _make_active_user(email, can_access_echo=False, can_access_emr=False):
+    """Insert a verified+active user in the test (in-memory) DB, return its id."""
+    with get_db_session() as db:
+        user = User(
+            email=email,
+            google_sub=f"sub-{email}",
+            is_verified=True,
+            is_active=True,
+            can_access_echo=can_access_echo,
+            can_access_emr=can_access_emr,
+        )
+        db.add(user)
+        db.flush()
+        return user.id
+
+
 class TestRoutes:
-    def test_index_page(self, client):
+    def test_index_page_requires_login(self, client):
+        assert client.get("/").status_code == 302
+
+    def test_index_page_logged_in(self, client):
+        user_id = _make_active_user("home-user@example.com")
+        with client.session_transaction() as s:
+            s["user_id"] = user_id
         assert client.get("/").status_code == 200
 
-    def test_egfr_page(self, client):
-        assert client.get("/egfr").status_code == 200
+    def test_egfr_page_requires_login(self, client):
+        assert client.get("/egfr").status_code == 302
+
+    def test_egfr_api_requires_auth(self, client):
+        resp = client.post("/api/egfr", json={"hn": "123"})
+        assert resp.status_code == 401
 
     def test_emr_api_requires_auth(self, client):
         """PHI endpoint must reject unauthenticated callers (not just the page)."""
@@ -43,6 +71,9 @@ class TestRoutes:
         assert resp.status_code == 401
 
     def test_hn_search_rejects_non_digit(self, client):
+        user_id = _make_active_user("hn-user@example.com")
+        with client.session_transaction() as s:
+            s["user_id"] = user_id
         resp = client.post("/api/egfr", json={"hn": "abc"})
         assert resp.status_code == 400
 
@@ -52,7 +83,13 @@ _EXEC = "app.api.routes_search.execute_sql_on_hosxp"
 
 
 class TestPerHNEndpoints:
+    def _login(self, client, email):
+        user_id = _make_active_user(email)
+        with client.session_transaction() as s:
+            s["user_id"] = user_id
+
     def test_egfr_success_and_zfill(self, client):
+        self._login(client, "egfr-success-user@example.com")
         df = pd.DataFrame([{"HN": "0000123", "result": 42}])
         with patch(_EXEC, return_value=df) as m:
             resp = client.post("/api/egfr", json={"hn": "123"})
@@ -65,6 +102,7 @@ class TestPerHNEndpoints:
         m.assert_called_once_with("egfr.sql", params={"hn": "0000123"})
 
     def test_consult_does_not_zfill(self, client):
+        self._login(client, "consult-user@example.com")
         df = pd.DataFrame([{"x": 1}])
         with patch(_EXEC, return_value=df) as m:
             resp = client.post("/api/consult", json={"hn": "123"})
@@ -73,6 +111,7 @@ class TestPerHNEndpoints:
         m.assert_called_once_with("consult.sql", params={"hn": "123"})
 
     def test_db_error_returns_generic_message(self, client):
+        self._login(client, "db-error-user@example.com")
         with patch(_EXEC, side_effect=RuntimeError("secret: table hosxp.foo")):
             resp = client.post("/api/egfr", json={"hn": "123"})
         assert resp.status_code == 500
@@ -87,8 +126,9 @@ class TestPerHNEndpoints:
             {"vn": "V2", "drug": "asa"},
         ])
         dfs = {"emr_hx_pe_dx_op.sql": main, "emr_rx.sql": rx}
+        user_id = _make_active_user("echo-user@example.com", can_access_echo=True)
         with client.session_transaction() as s:
-            s["echo_authenticated"] = True
+            s["user_id"] = user_id
         with patch(_EXEC, side_effect=lambda f, params=None: dfs[f]):
             resp = client.post("/api/emr", json={"hn": "123"})
         assert resp.status_code == 200
@@ -98,8 +138,9 @@ class TestPerHNEndpoints:
         assert len(by_vn["V2"]) == 1
 
     def test_emr_allows_emr_session(self, client):
+        user_id = _make_active_user("emr-user@example.com", can_access_emr=True)
         with client.session_transaction() as s:
-            s["emr_authenticated"] = True
+            s["user_id"] = user_id
         with patch(_EXEC, return_value=pd.DataFrame([{"VN": "V1"}])):
             resp = client.post("/api/emr", json={"hn": "123"})
         assert resp.status_code == 200

@@ -2,8 +2,10 @@
 import os
 from flask import Flask
 from flask_wtf.csrf import CSRFProtect
+from authlib.integrations.flask_client import OAuth
 
 csrf = CSRFProtect()
+oauth = OAuth()
 
 from app.api import api_bp, views_bp
 
@@ -21,8 +23,23 @@ def create_app():
     # Initialize CSRF protection
     csrf.init_app(app)
 
+    # Initialize Google OAuth client
+    oauth.init_app(app)
+    oauth.register(
+        name="google",
+        client_id=app.config["GOOGLE_CLIENT_ID"],
+        client_secret=app.config["GOOGLE_CLIENT_SECRET"],
+        server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+        client_kwargs={"scope": "openid email profile"},
+    )
+
     # Ensure instance directory exists
     os.makedirs(app.config.get("INSTANCE_DIR", "instance"), exist_ok=True)
+
+    # Create local users DB tables (idempotent — safe on every worker start)
+    from app.models.local_db import get_local_engine
+    from app.models.user import Base as UserBase
+    UserBase.metadata.create_all(get_local_engine())
 
     # Register blueprints
     app.register_blueprint(api_bp, url_prefix="/api")
@@ -81,4 +98,8 @@ def _register_context_processors(app):
 
     @app.context_processor
     def inject_globals():
-        return dict(app_name="Project Echo")
+        from app.utils.auth import get_current_user
+
+        user = get_current_user()
+        is_admin = user is not None and user.email.lower() in app.config["ADMIN_EMAILS"]
+        return dict(app_name="Project Echo", current_user=user, is_admin=is_admin)

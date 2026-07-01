@@ -47,9 +47,28 @@ class Config:
     HOSXP_DB = os.getenv("HOSXP_DB", "")
     HOSXP_PORT = int(os.getenv("HOSXP_PORT", "3306"))
 
-    # Echo Secret Code
-    ECHO_SECRET_CODE = os.getenv("ECHO_SECRET_CODE", "")
+    # Base URL of this app (used to build the Google OAuth redirect + email links)
+    BASE_URL = os.getenv("BASE_URL", "http://localhost:5009").rstrip("/")
 
-    # Instance dir (barcode cache + lock files)
+    # Google OAuth
+    GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+    GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    GOOGLE_REDIRECT_URI = f"{BASE_URL}/auth/callback"
+
+    # Email (Gmail SMTP — sends email-verification links)
+    EMAIL_FROM = os.getenv("EMAIL_FROM", "")
+    # Google displays App Passwords with spaces for readability — strip them
+    # so a copy-pasted "abcd efgh ijkl mnop" still works.
+    EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "").replace(" ", "")
+
+    # Admin whitelist (comma-separated emails, case-insensitive)
+    ADMIN_EMAILS = [
+        e.strip().lower() for e in os.getenv("ADMIN_EMAILS", "").split(",") if e.strip()
+    ]
+
+    # Email verification token expiry, in seconds (default 24h)
+    EMAIL_VERIFY_TOKEN_MAX_AGE = int(os.getenv("EMAIL_VERIFY_TOKEN_MAX_AGE", "86400"))
+
+    # Instance dir (local users DB + barcode cache + lock files)
     BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
     INSTANCE_DIR = os.path.join(BASE_DIR, "instance")

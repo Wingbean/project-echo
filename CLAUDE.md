@@ -60,7 +60,7 @@ After verifying, tear down or leave running per the user's preference — don't 
 ## Architecture
 
 Flask app factory (`app/__init__.py:create_app`) wires together two blueprints registered in `app/api/__init__.py`:
-- `api_bp` (mounted at `/api`) — JSON endpoints, split by concern across `app/api/routes_auth.py` (secret-code verify), `routes_search.py` (per-HN lookups), and `routes_barcode.py` (scanner + DB diagnostic).
+- `api_bp` (mounted at `/api`) — JSON endpoints, split by concern across `app/api/routes_auth.py` (Google OAuth login/callback/logout, email verification), `routes_admin.py` (admin user management), `routes_search.py` (per-HN lookups), and `routes_barcode.py` (scanner + DB diagnostic).
 - `views_bp` (`app/api/views.py`, mounted at `/`) — Jinja2 page rendering.
 
 Both blueprints are populated purely by importing those route modules for their registration side effects — there's no other wiring. A new endpoint just needs a `@api_bp.route`/`@views_bp.route` decorator in the matching module, and (if it's a new module) an import line in `app/api/__init__.py`.
@@ -76,13 +76,17 @@ There is no SQLite cache, sync job, scheduler, or dashboard — that machinery w
 
 ### Per-HN search endpoints follow one pattern
 
-`/api/egfr`, `/api/a1c`, `/api/inr`, `/api/consult`, `/api/flow_opd`, `/api/emr` in `app/api/routes_search.py` share the helper `_hn_search("<name>.sql", zfill=...)`: it validates `hn` is digits (zero-padded to 7 for most, but *not* `consult`/`flow_opd`, which pass `zfill=False`), runs the query, and serializes the DataFrame via `records_from_df` (`app/utils/helpers.py`) into `{status, columns, records, total}`. When adding a new lab/record type, add a one-liner that calls `_hn_search(...)` — do not re-inline the serialization. `/api/emr` is the one exception: it requires auth, additionally fetches `emr_rx.sql`, and groups prescription rows by `VN` (visit number) onto each record as `rx_list`.
+`/api/egfr`, `/api/a1c`, `/api/inr`, `/api/consult`, `/api/flow_opd`, `/api/emr` in `app/api/routes_search.py` share the helper `_hn_search("<name>.sql", zfill=...)`: it validates `hn` is digits (zero-padded to 7 for most, but *not* `consult`/`flow_opd`, which pass `zfill=False`), runs the query, and serializes the DataFrame via `records_from_df` (`app/utils/helpers.py`) into `{status, columns, records, total}`. When adding a new lab/record type, add a one-liner that calls `_hn_search(...)` — do not re-inline the serialization. All of them require login (`@login_required`, see Auth model below). `/api/emr` is the one exception: instead of `login_required` it inlines an OR-flag check (either `can_access_echo` or `can_access_emr`), additionally fetches `emr_rx.sql`, and groups prescription rows by `VN` (visit number) onto each record as `rx_list`.
 
 ### Auth model
 
-Session-cookie based (no user accounts), all secret-code driven:
-- **Secret code pages** (`/echo`, `/emr`): a single shared `ECHO_SECRET_CODE` sets `session["echo_authenticated"]` / `session["emr_authenticated"]` via `_verify_secret_code` in `routes_auth.py` (constant-time `hmac.compare_digest`).
-- **`/api/emr` is PHI** and enforces this at the API level too — it requires `emr_authenticated` *or* `echo_authenticated` (the `/echo` integrated view also reads EMR). The other per-HN endpoints are intentionally open (their pages are public).
+Real per-user accounts via Google OAuth, backed by a local SQLite DB (`instance/app.db`, separate from the HosXP MySQL connection) — see `app/models/user.py` (the `User` table: `email`, `google_sub`, `is_verified`, `is_active`, `can_access_echo`, `can_access_emr`) and `app/models/local_db.py` (engine/session).
+
+- **Login flow** (`app/api/routes_auth.py`): `/auth/login` redirects to Google via Authlib; `/auth/callback` upserts the `User` row by `google_sub` and sets `session["user_id"]`. On first login, an email-verification link (`itsdangerous`-signed, 24h expiry) is sent via SMTP (`app/utils/email.py`) to `/auth/verify-email/<token>`. Verifying the email is **not** sufficient — an admin must separately set `is_active = True` before the account can use anything.
+- **Admin panel** (`/admin` page + `/api/admin/users*` in `app/api/routes_admin.py`): admins are identified purely by an `ADMIN_EMAILS` whitelist in `.env` (no DB role column) so the very first admin can always get in — `admin_required` (in `app/utils/auth.py`) bypasses the verified/active gate entirely for whitelisted emails. Admins can activate/deactivate/delete any user and toggle their `can_access_echo`/`can_access_emr` flags independently (activating a user does not itself grant either).
+- **The whole site requires login.** Every page in `views.py` (index, consult, flow_opd, egfr, a1c, inr) and every per-HN API endpoint in `routes_search.py` (except `/api/emr`, see below) is gated by `@login_required` (in `app/utils/auth.py`) — a logged-in, verified, active user, no specific flag needed beyond that.
+- **`/echo` and `/emr` pages** additionally require a specific flag, gated by `access_required("can_access_echo"/"can_access_emr")`.
+- **`/api/emr` is PHI** and enforces this at the API level too — it accepts *either* `can_access_echo` or `can_access_emr` (the `/echo` integrated view also reads EMR), checked inline via `get_current_user()` rather than through `access_required` (which only checks one flag).
 
 CSRF protection (Flask-WTF) is applied globally except where explicitly exempted; endpoints hit by non-browser clients (barcode scanner in `routes_barcode.py`) are exempted.
 

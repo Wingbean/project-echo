@@ -76,6 +76,17 @@
           <span>EMR</span>
         </a>
       </li>
+      {% if is_admin %}
+      <li class="nav-item">
+        <a
+          href="{{ url_for('views.admin_page') }}"
+          class="nav-link {% if request.endpoint == 'views.admin_page' %}active{% endif %}"
+        >
+          <span class="material-symbols-rounded">admin_panel_settings</span>
+          <span>Admin</span>
+        </a>
+      </li>
+      {% endif %}
     </ul>
 
     <div class="nav-actions">
@@ -87,6 +98,15 @@
       >
         <span class="material-symbols-rounded" id="themeIcon">dark_mode</span>
       </button>
+      {% if current_user %}
+      <a href="{{ url_for('views.auth_logout') }}" class="nav-link" title="ออกจากระบบ">
+        <span class="material-symbols-rounded">logout</span>
+      </a>
+      {% else %}
+      <a href="{{ url_for('views.login_page') }}" class="nav-link" title="เข้าสู่ระบบ">
+        <span class="material-symbols-rounded">login</span>
+      </a>
+      {% endif %}
     </div>
   </div>
 </nav>
