@@ -42,8 +42,11 @@ docker image prune -f
 docker compose ps
 
 # 4. Exercise the app while it's running (hit real routes/endpoints, e.g.)
-curl -i http://localhost:5009/
-curl -i -X POST http://localhost:5009/api/emr -H 'Content-Type: application/json' -d '{"hn":"123"}'  # expect 401 unauth
+curl -i http://localhost:5009/   # expect 302 -> /login when unauth
+# POST endpoints are CSRF-protected, so a tokenless POST returns 400 (CSRF missing) BEFORE the auth check:
+curl -i -X POST http://localhost:5009/api/emr -H 'Content-Type: application/json' -d '{"hn":"123"}'  # expect 400 CSRF (not 401)
+# To hit the auth gate itself, use a login-gated GET, e.g.:
+curl -i http://localhost:5009/api/admin/users  # expect 403 unauth (admin-only)
 
 # 5. Inspect logs for errors/tracebacks
 docker compose logs web --tail=200
@@ -80,11 +83,12 @@ There is no SQLite cache, sync job, scheduler, or dashboard of HosXP data — th
 
 ### Auth model
 
-Real per-user accounts via Google OAuth, backed by a local SQLite DB (`instance/app.db`, separate from the HosXP MySQL connection) — see `app/models/user.py` (the `User` table: `email`, `google_sub`, `is_verified`, `is_active`, `can_access_echo`, `can_access_emr`) and `app/models/local_db.py` (engine/session).
+Real per-user accounts via Google OAuth, backed by a local SQLite DB (`instance/app.db`, separate from the HosXP MySQL connection) — see `app/models/user.py` (the `User` table: `email`, `google_sub`, `is_verified`, `is_active`, `can_access_echo`, `can_access_emr`, `totp_secret`, `totp_enabled`) and `app/models/local_db.py` (engine/session).
 
 - **Login flow** (`app/api/routes_auth.py`): `/auth/login` redirects to Google via Authlib; `/auth/callback` upserts the `User` row by `google_sub` and sets `session["user_id"]`. On first login, an email-verification link (`itsdangerous`-signed, 24h expiry) is sent via SMTP (`app/utils/email.py`) to `/auth/verify-email/<token>`. Verifying the email is **not** sufficient — an admin must separately set `is_active = True` before the account can use anything.
+- **TOTP 2FA is a mandatory third gate.** After a user is verified + active, `login_required` still redirects to `/auth/setup-2fa` (first time — shows a QR built with `pyotp`/`qrcode`, sets `totp_secret`, and flips `totp_enabled` on the first correct code) or `/auth/verify-2fa` (returning users) until `session["totp_verified"]` is set. The secret persists in the DB, but the `totp_verified` flag is per-session, so every new session re-prompts for a code. `/auth/logout` clears both `user_id` and `totp_verified`. There is **no** admin reset path — losing the authenticator means clearing `totp_secret`/`totp_enabled` in the DB by hand.
 - **Admin panel** (`/admin` page + `/api/admin/users*` in `app/api/routes_admin.py`): admins are identified purely by an `ADMIN_EMAILS` whitelist in `.env` (no DB role column) so the very first admin can always get in — `admin_required` (in `app/utils/auth.py`) bypasses the verified/active gate entirely for whitelisted emails. Admins can activate/deactivate/delete any user and toggle their `can_access_echo`/`can_access_emr` flags independently (activating a user does not itself grant either).
-- **The whole site requires login.** Every page in `views.py` (index, consult, flow_opd, egfr, a1c, inr) and every per-HN API endpoint in `routes_search.py` (except `/api/emr`, see below) is gated by `@login_required` (in `app/utils/auth.py`) — a logged-in, verified, active user, no specific flag needed beyond that.
+- **The whole site requires login.** Every page in `views.py` (index, consult, flow_opd, egfr, a1c, inr) and every per-HN API endpoint in `routes_search.py` (except `/api/emr`, see below) is gated by `@login_required` (in `app/utils/auth.py`) — a logged-in, verified, active, **2FA-passed** user, no specific access flag needed beyond that.
 - **`/echo` and `/emr` pages** additionally require a specific flag, gated by `access_required("can_access_echo"/"can_access_emr")`.
 - **`/api/emr` is PHI** and enforces this at the API level too — it accepts *either* `can_access_echo` or `can_access_emr` (the `/echo` integrated view also reads EMR), checked inline via `get_current_user()` rather than through `access_required` (which only checks one flag).
 
