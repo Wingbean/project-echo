@@ -39,7 +39,7 @@ def _send_verification(user_id: int, email: str):
 def auth_login():
     """Redirect the browser to Google's OAuth consent screen."""
     redirect_uri = Config.GOOGLE_REDIRECT_URI
-    return oauth.google.authorize_redirect(redirect_uri)
+    return oauth.google.authorize_redirect(redirect_uri, prompt="select_account")
 
 
 @views_bp.route("/auth/callback")
