@@ -1,0 +1,73 @@
+{% extends "base.html" %} {% block title %}ค้นหาผู้ป่วยจากชื่อ - Project Echo{% endblock %} {%
+block extra_css %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/components/form.css') }}"
+/>
+{% endblock %} {% block content %}
+<section class="page-section theme-amber">
+  <div class="section-card">
+    <div class="section-header">
+      <h2 class="section-title">
+        <span class="material-symbols-rounded">person_search</span>
+        ค้นหา HN จากชื่อ-นามสกุล
+      </h2>
+    </div>
+    <div class="section-body">
+      <form id="patientSearchForm" class="query-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <div class="form-group">
+          <label for="fnameInput" class="form-label">ชื่อ:</label>
+          <input
+            type="text"
+            id="fnameInput"
+            name="fname"
+            class="form-input"
+            placeholder="กรอกชื่อหรือบางส่วนของชื่อ"
+            autocomplete="off"
+          />
+        </div>
+        <div class="form-group">
+          <label for="lnameInput" class="form-label">นามสกุล:</label>
+          <input
+            type="text"
+            id="lnameInput"
+            name="lname"
+            class="form-input"
+            placeholder="กรอกนามสกุลหรือบางส่วนของนามสกุล"
+            autocomplete="off"
+          />
+        </div>
+        <span class="form-hint">กรอกอย่างน้อยหนึ่งช่อง — ผลลัพธ์แสดงสูงสุด 100 รายการ</span>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" id="submitBtn">
+            <span class="material-symbols-rounded">search</span>
+            ค้นหา
+          </button>
+          <button type="reset" class="btn btn-outline" id="resetBtn">
+            <span class="material-symbols-rounded">restart_alt</span>
+            ล้าง
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="section-card" id="resultsSection" style="display: none">
+    <div class="section-header">
+      <h2 class="section-title">
+        <span class="material-symbols-rounded">table_chart</span>
+        ผลการค้นหา
+      </h2>
+      <div class="results-meta">
+        <span class="badge" id="resultCount">0 รายการ</span>
+      </div>
+    </div>
+    <div class="section-body">
+      <div class="table-responsive" id="resultsTable"></div>
+    </div>
+  </div>
+</section>
+{% endblock %} {% block extra_js %}
+<script src="{{ url_for('static', filename='js/pages/patient_search.js') }}"></script>
+{% endblock %}

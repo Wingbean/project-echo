@@ -26,6 +26,7 @@ class User(Base):
 
     can_access_echo = Column(Boolean, default=False, nullable=False)
     can_access_emr = Column(Boolean, default=False, nullable=False)
+    can_access_name_search = Column(Boolean, default=False, nullable=False)
 
     totp_secret = Column(String(32), nullable=True)
     totp_enabled = Column(Boolean, default=False, nullable=False)

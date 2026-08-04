@@ -39,6 +39,7 @@ def create_app():
     # Create local users DB tables (idempotent — safe on every worker start)
     from app.models.local_db import get_local_engine
     from app.models.user import Base as UserBase
+    from app.models.patient_name import PatientName  # noqa: F401 - registers table on UserBase
     engine = get_local_engine()
     UserBase.metadata.create_all(engine)
     _add_missing_columns(engine, UserBase)

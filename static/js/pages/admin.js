@@ -20,6 +20,9 @@ document.addEventListener("DOMContentLoaded", () => {
           <td>
             <label><input type="checkbox" class="access-toggle" data-flag="can_access_emr" ${u.can_access_emr ? "checked" : ""}> EMR</label>
           </td>
+          <td>
+            <label><input type="checkbox" class="access-toggle" data-flag="can_access_name_search" ${u.can_access_name_search ? "checked" : ""}> ค้นหาชื่อ</label>
+          </td>
           <td class="admin-actions">
             ${
               u.is_active

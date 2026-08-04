@@ -3,10 +3,16 @@ import re
 
 from flask import jsonify, request
 
+from sqlalchemy import or_
+
 from app.api import api_bp
+from app.models.local_db import get_db_session
+from app.models.patient_name import PatientName
 from app.services.hosxp_service import execute_sql_on_hosxp
-from app.utils.auth import get_current_user, login_required
+from app.utils.auth import access_required, get_current_user, login_required
 from app.utils.helpers import records_from_df
+
+PATIENT_SEARCH_LIMIT = 100
 
 
 def _hn_search(sql_file: str, zfill: bool = True):
@@ -134,3 +140,41 @@ def emr_search():
     except Exception as e:
         print(f"❌ emr query failed: {e}")
         return jsonify({"status": "error", "message": "เกิดข้อผิดพลาดในการดึงข้อมูล"}), 500
+
+
+@api_bp.route("/patient_search", methods=["POST"])
+@access_required("can_access_name_search")
+def patient_search(current_user):
+    """Search HN by first/last name (partial match, OR) against the local
+    nightly-synced cache — see scripts/sync_patient_names.py."""
+    data = request.get_json(silent=True) or {}
+    fname = str(data.get("fname", "")).strip()
+    lname = str(data.get("lname", "")).strip()
+
+    if not fname and not lname:
+        return jsonify({"status": "error", "message": "กรุณาระบุชื่อหรือนามสกุล"}), 400
+
+    conditions = []
+    if fname:
+        conditions.append(PatientName.fname.like(f"%{fname}%"))
+    if lname:
+        conditions.append(PatientName.lname.like(f"%{lname}%"))
+
+    with get_db_session() as db:
+        rows = (
+            db.query(PatientName)
+            .filter(or_(*conditions))
+            .limit(PATIENT_SEARCH_LIMIT)
+            .all()
+        )
+        records = [
+            {"hn": r.hn, "pname": r.pname, "fname": r.fname, "lname": r.lname}
+            for r in rows
+        ]
+
+    return jsonify({
+        "status": "success",
+        "records": records,
+        "total": len(records),
+        "limit_reached": len(records) == PATIENT_SEARCH_LIMIT,
+    })

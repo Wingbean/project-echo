@@ -47,6 +47,13 @@ def inr_page(current_user):
     return render_template("pages/inr.html")
 
 
+@views_bp.route("/patient_search")
+@access_required("can_access_name_search")
+def patient_search_page(current_user):
+    """Search HN by first/last name. Requires login + can_access_name_search."""
+    return render_template("pages/patient_search.html")
+
+
 @views_bp.route("/emr")
 @access_required("can_access_emr")
 def emr_page(current_user):

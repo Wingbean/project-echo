@@ -16,6 +16,7 @@ def _user_dict(user: User) -> dict:
         "is_active": user.is_active,
         "can_access_echo": user.can_access_echo,
         "can_access_emr": user.can_access_emr,
+        "can_access_name_search": user.can_access_name_search,
         "totp_enabled": user.totp_enabled,
         "created_at": user.created_at.isoformat() if user.created_at else None,
     }
@@ -96,4 +97,6 @@ def admin_set_access(current_user, user_id):
             user.can_access_echo = bool(data["can_access_echo"])
         if "can_access_emr" in data:
             user.can_access_emr = bool(data["can_access_emr"])
+        if "can_access_name_search" in data:
+            user.can_access_name_search = bool(data["can_access_name_search"])
     return jsonify({"status": "success"})
