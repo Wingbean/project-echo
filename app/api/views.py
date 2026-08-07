@@ -47,6 +47,13 @@ def inr_page(current_user):
     return render_template("pages/inr.html")
 
 
+@views_bp.route("/tcvr")
+@login_required
+def tcvr_page(current_user):
+    """Thai CVD Risk calculator page (screening visits on one day)."""
+    return render_template("pages/tcvr.html")
+
+
 @views_bp.route("/patient_search")
 @access_required("can_access_name_search")
 def patient_search_page(current_user):

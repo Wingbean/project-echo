@@ -1,0 +1,61 @@
+{% extends "base.html" %} {% block title %}TCVR - Project Echo{% endblock %} {%
+block extra_css %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/components/form.css') }}"
+/>
+{% endblock %} {% block content %}
+<section class="page-section theme-ncd">
+  <div class="section-card">
+    <div class="section-header">
+      <h2 class="section-title">
+        <span class="material-symbols-rounded">monitor_heart</span>
+        Thai CVD Risk — คำนวณความเสี่ยงโรคหัวใจและหลอดเลือด
+      </h2>
+    </div>
+    <div class="section-body">
+      <form id="tcvrForm" class="query-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <div class="form-group">
+          <label for="tcvrDate" class="form-label">เลือกวันที่ (วันที่คัดกรอง)</label>
+          <input type="date" id="tcvrDate" name="date" class="form-input" required />
+          <span class="form-hint"
+            >คำนวณเฉพาะผู้รับบริการที่ถูกคัดกรอง (opdscreen) ในวันที่เลือก
+            และอายุ ณ วันคัดกรองมากกว่า 25 ปี</span
+          >
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" id="tcvrSubmitBtn">
+            <span class="material-symbols-rounded">calculate</span>
+            ดึงข้อมูลและคำนวณ
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="section-card" id="resultsSection">
+    <div class="section-header">
+      <h2 class="section-title">
+        <span class="material-symbols-rounded">table_chart</span>
+        ผลลัพธ์
+      </h2>
+      <div class="results-meta">
+        <input
+          type="text"
+          id="hnFilterInput"
+          class="form-input form-input-sm"
+          placeholder="พิมพ์ HN เพื่อกรอง"
+          style="max-width: 180px"
+        />
+        <span class="badge" id="resultCount">0 รายการ</span>
+      </div>
+    </div>
+    <div class="section-body">
+      <div class="table-responsive" id="resultsTable"></div>
+    </div>
+  </div>
+</section>
+{% endblock %} {% block extra_js %}
+<script src="{{ url_for('static', filename='js/pages/tcvr.js') }}"></script>
+{% endblock %}

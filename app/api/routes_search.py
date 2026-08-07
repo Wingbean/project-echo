@@ -1,5 +1,6 @@
 # app/api/routes_search.py - Per-HN search endpoints (labs, EMR)
 import re
+from datetime import date
 
 from flask import jsonify, request
 
@@ -9,6 +10,7 @@ from app.api import api_bp
 from app.models.local_db import get_db_session
 from app.models.patient_name import PatientName
 from app.services.hosxp_service import execute_sql_on_hosxp
+from app.services.tcvr_service import fetch_tcvr_df
 from app.utils.auth import access_required, get_current_user, login_required
 from app.utils.helpers import records_from_df
 
@@ -139,6 +141,28 @@ def emr_search():
         })
     except Exception as e:
         print(f"❌ emr query failed: {e}")
+        return jsonify({"status": "error", "message": "เกิดข้อผิดพลาดในการดึงข้อมูล"}), 500
+
+
+@api_bp.route("/tcvr", methods=["GET"])
+@login_required
+def tcvr_search(current_user):
+    """Compute Thai CVD Risk for screening visits on one day (defaults to today)."""
+    picked = request.args.get("date") or date.today().isoformat()
+    if not re.match(r"^\d{4}-\d{2}-\d{2}$", picked):
+        return jsonify({"status": "error", "message": "รูปแบบวันที่ไม่ถูกต้อง"}), 400
+
+    try:
+        columns, records = records_from_df(fetch_tcvr_df(picked))
+        return jsonify({
+            "status": "success",
+            "columns": columns,
+            "records": records,
+            "total": len(records),
+            "date": picked,
+        })
+    except Exception as e:
+        print(f"❌ tcvr query failed: {e}")
         return jsonify({"status": "error", "message": "เกิดข้อผิดพลาดในการดึงข้อมูล"}), 500
 
 
