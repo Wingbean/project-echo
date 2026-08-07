@@ -69,6 +69,10 @@ class Config:
     # Email verification token expiry, in seconds (default 24h)
     EMAIL_VERIFY_TOKEN_MAX_AGE = int(os.getenv("EMAIL_VERIFY_TOKEN_MAX_AGE", "86400"))
 
+    # Telegram (sync job success/failure notifications)
+    TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+
     # Instance dir (local users DB + barcode cache + lock files)
     BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
     INSTANCE_DIR = os.path.join(BASE_DIR, "instance")
