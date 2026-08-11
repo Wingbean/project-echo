@@ -1,3 +1,76 @@
+const RISK_BADGE_COLORS = {
+  Low: "#22c55e",
+  Medium: "#eab308",
+  High: "#f97316",
+  VeryHigh: "#ef4444",
+  Extreme: "#991b1b",
+};
+
+function tcvrBadge(text, color) {
+  return `<span style="background-color: ${color}; color: white; padding: 2px 8px; border-radius: 12px; font-weight: bold; display: inline-block;">${text}</span>`;
+}
+
+// Mask a name part: keep first/last char, blank out the middle with ***.
+function maskNamePart(part) {
+  if (part.length <= 2) return part[0] + "*".repeat(part.length - 1);
+  return part[0] + "***" + part[part.length - 1];
+}
+
+function maskName(fullName) {
+  return fullName
+    .split(" ")
+    .filter(Boolean)
+    .map(maskNamePart)
+    .join(" ");
+}
+
+// Show the CVD risk result columns right after Age instead of at the end.
+function reorderColumns(columns) {
+  const cols = columns.slice();
+  const ageIdx = cols.indexOf("Age");
+  if (ageIdx === -1) return cols;
+  const moveCols = ["ThaiCVD_Risk_pct", "RiskCat"].filter((c) => cols.includes(c));
+  const rest = cols.filter((c) => !moveCols.includes(c));
+  const insertAt = rest.indexOf("Age") + 1;
+  rest.splice(insertAt, 0, ...moveCols);
+  return rest;
+}
+
+const TCVR_TABLE_OPTIONS = {
+  columnLabels: {
+    HN: "HN",
+    Name: "Name",
+    Sex: "Sex",
+    Age: "Age",
+    DM: "DM",
+    HT: "HT",
+    Smoke: "Smoke",
+    bps_ops: "bps",
+    TC_ops: "TC",
+    waist_ops: "waist",
+    height_ops: "height",
+    lastDate: "Last Visit",
+    RegDate: "Reg. Date",
+    ThaiCVD_Risk_pct: "CVD Risk %",
+    RiskCat: "Risk",
+  },
+  cellRenderers: {
+    Name: (val) =>
+      val ? EchoUtils.escapeHtml(maskName(String(val))) : "-",
+    Sex: (val) => (val === 1 || val === "1" ? "M" : val === 2 || val === "2" ? "F" : "-"),
+    DM: (val) => (val === "Y" ? tcvrBadge("✓", "#22c55e") : "-"),
+    HT: (val) => (val === "Y" ? tcvrBadge("✓", "#22c55e") : "-"),
+    Smoke: (val) => (val === 2 || val === "2" ? tcvrBadge("S", "#eab308") : "-"),
+    ThaiCVD_Risk_pct: (val, row) => {
+      if (val === null || val === undefined || val === "") return "-";
+      const color = RISK_BADGE_COLORS[row.RiskCat];
+      return color ? tcvrBadge(`${val}%`, color) : `${val}%`;
+    },
+    RiskCat: (val) =>
+      val && RISK_BADGE_COLORS[val] ? tcvrBadge(val, RISK_BADGE_COLORS[val]) : val || "-",
+  },
+};
+
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("tcvrForm");
   const dateInput = document.getElementById("tcvrDate");
@@ -10,7 +83,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentColumns = [];
 
   function renderTable(records) {
-    resultsTable.innerHTML = EchoUtils.buildTable(currentColumns, records);
+    resultsTable.innerHTML = EchoUtils.buildTable(currentColumns, records, TCVR_TABLE_OPTIONS);
     resultCount.textContent = records.length + " รายการ";
   }
 
@@ -30,7 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       currentRecords = data.records || [];
-      currentColumns = data.columns || [];
+      currentColumns = reorderColumns(data.columns || []);
       hnFilterInput.value = "";
       renderTable(currentRecords);
     } catch (err) {

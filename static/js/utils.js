@@ -59,7 +59,8 @@ const EchoUtils = {
     let html =
       '<table class="data-table"><thead><tr><th class="row-num">#</th>';
     columns.forEach((col) => {
-      html += `<th>${this.escapeHtml(col)}</th>`;
+      const label = (options.columnLabels && options.columnLabels[col]) || col;
+      html += `<th>${this.escapeHtml(label)}</th>`;
     });
     html += "</tr></thead><tbody>";
 

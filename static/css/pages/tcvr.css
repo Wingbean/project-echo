@@ -1,0 +1,23 @@
+/* Let the results card break out of the centered container on desktop
+   screens so all 15 columns can fit without horizontal scrolling. */
+@media (min-width: 900px) {
+  #resultsSection {
+    width: 100vw;
+    max-width: none;
+    position: relative;
+    left: 50%;
+    margin-left: -50vw;
+  }
+
+  #resultsSection .section-header,
+  #resultsSection .section-body {
+    padding-left: var(--spacing-2xl);
+    padding-right: var(--spacing-2xl);
+  }
+}
+
+#resultsSection .data-table th,
+#resultsSection .data-table td {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  white-space: nowrap;
+}
