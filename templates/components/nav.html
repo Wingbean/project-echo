@@ -15,15 +15,6 @@
     <ul class="nav-menu" id="navMenu">
       <li class="nav-item">
         <a
-          href="{{ url_for('views.index') }}"
-          class="nav-link {% if request.endpoint == 'views.index' %}active{% endif %}"
-        >
-          <span class="material-symbols-rounded">dashboard</span>
-          <span>หน้าหลัก</span>
-        </a>
-      </li>
-      <li class="nav-item">
-        <a
           href="{{ url_for('views.consult_page') }}"
           class="nav-link {% if request.endpoint == 'views.consult_page' %}active{% endif %}"
         >
@@ -65,6 +56,15 @@
         >
           <span class="material-symbols-rounded">science</span>
           <span>INR</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a
+          href="{{ url_for('views.tcvr_page') }}"
+          class="nav-link {% if request.endpoint == 'views.tcvr_page' %}active{% endif %}"
+        >
+          <span class="material-symbols-rounded">monitor_heart</span>
+          <span>TCVR</span>
         </a>
       </li>
       <li class="nav-item">
