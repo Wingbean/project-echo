@@ -1,7 +1,7 @@
 -- a1c
 SELECT 
 	lh.hn AS 'HN'
-	, lh.report_date AS 'LabDate'
+	, IF(lh.report_date IS NULL OR lh.report_date < '2000-01-01', lh.order_date, lh.report_date) AS 'LabDate'
 	, lh.report_time AS 'LabTime'
 	, lo.lab_order_result AS 'result'
 	,  CASE 
@@ -15,6 +15,6 @@ WHERE lo.lab_items_code IN (193, 948)
 --      AND lh.report_date BETWEEN '2025-10-01' AND '2026-09-30'
      AND lo.lab_order_result REGEXP '^[0-9]'
      AND lh.hn = %(hn)s
-GROUP BY lh.hn, lh.report_date
-ORDER BY lh.report_date DESC
+GROUP BY lh.hn, IF(lh.report_date IS NULL OR lh.report_date < '2000-01-01', lh.order_date, lh.report_date)
+ORDER BY IF(lh.report_date IS NULL OR lh.report_date < '2000-01-01', lh.order_date, lh.report_date) DESC
 ;
